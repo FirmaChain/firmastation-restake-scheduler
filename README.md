@@ -1,4 +1,5 @@
 # FirmaStation Restake Scheduler
+![image](https://user-images.githubusercontent.com/93503020/179888980-a0e52cea-e4f1-49f7-ae66-81257cfb93ae.png)
 
 ## How to build
 ### 1. Install npm
