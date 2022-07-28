@@ -6,9 +6,6 @@ export type StatusesDocument = Statuses & Document;
 export class Statuses {
   @Prop({ required: true })
   nowRound: number;
-  
-  @Prop()
-  isHasData: boolean;
 
   @Prop({ required: true })
   feesAmount: number;

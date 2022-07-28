@@ -10,8 +10,7 @@ export class HistoriesService {
   constructor(@InjectModel(Histories.name) private readonly historiesModel: Model<HistoriesDocument>) {}
 
   async create(createHistoriesDto: CreateHistoriesDto): Promise<Histories> {
-    const createHistories = await this.historiesModel.create(createHistoriesDto);
-    return createHistories;
+    return await this.historiesModel.create(createHistoriesDto);
   }
 
   async findAll(): Promise<Histories[]> {

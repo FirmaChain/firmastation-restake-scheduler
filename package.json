@@ -29,7 +29,7 @@
     "@nestjs/platform-express": "^8.0.0",
     "@nestjs/schedule": "^2.1.0",
     "@types/node-cron": "^3.0.2",
-    "mongoose": "^6.4.4",
+    "mongoose": "^6.2.2",
     "mongoose-autopopulate": "^0.16.1",
     "mongoose-sequence": "^5.3.1",
     "reflect-metadata": "^0.1.13",

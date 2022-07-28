@@ -22,6 +22,22 @@ const firmaREStakeInterval = () => {
     return await firmaSDK.Wallet.fromMnemonic(RESTAKE_MNEMONIC);
   }
 
+  async function getValoperAddresses(): Promise<string[]> {
+    let validatorInfo = await firmaSDK.Staking.getValidatorList();
+    
+    let validators = validatorInfo.dataList;
+    let nextKey = validatorInfo.pagination.next_key;
+
+    while (nextKey !== null) {
+      const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(nextKey);
+
+      validators.push(...nextValidatorInfo.dataList);
+      nextKey = nextValidatorInfo.pagination.next_key;
+    }
+
+    return validators.filter(validator => validator.jailed !== true).map(validator => validator.operator_address);
+  }
+
   async function getValidators(): Promise<ValidatorDataType[]> {
     let validatorInfo = await firmaSDK.Staking.getValidatorList();
     let validatorList = validatorInfo.dataList;
@@ -200,6 +216,7 @@ const firmaREStakeInterval = () => {
   return {
     getSDK,
     getREStakeWallet,
+    getValoperAddresses,
     getValidators,
     getDelegators,
     getPossibleRewardDelegators,

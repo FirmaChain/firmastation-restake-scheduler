@@ -10,8 +10,7 @@ export class RoundsService {
   constructor(@InjectModel(Rounds.name) private readonly roundsModel: Model<RoundsDocument>) {}
 
   async create(createRoundsDto: CreateRoundsDto): Promise<Rounds> {
-    const createdRounds = await this.roundsModel.create(createRoundsDto);
-    return createdRounds;
+    return await this.roundsModel.create(createRoundsDto);
   }
 
   async findAll(): Promise<Rounds[]> {
@@ -28,7 +27,6 @@ export class RoundsService {
   }
 
   async findLatestAt(count: number): Promise<Rounds[]> {
-    const roundData = await this.roundsModel.find().sort({ round: -1 }).limit(count);
-    return roundData;
+    return await this.roundsModel.find().sort({ round: -1 }).limit(count);
   }
 }

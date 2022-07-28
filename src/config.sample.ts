@@ -2,17 +2,11 @@ import { FirmaConfig } from "@firmachain/firma-js";
 import { PRODUCTION, DEVELOPMENT, TEST } from "./defines/enviroment";
 
 export const APP_PORT = 0;
-
 export const MONGODB_URI = '';
-
 export const RESTAKE_MNEMONIC = '';
-
 export const MINIMUM_UFCT_REWARD_AMOUNT = 0;
-
-export const FREEQUANCY = '';
-
+export const RESTAKE_FREQUENCY = '';
 export const BATCH_TX_COUNT = 0;
-
 export const PRODUCTION_MODE = '';
 
 export const FIRMACHAIN_CONFIG = () => {

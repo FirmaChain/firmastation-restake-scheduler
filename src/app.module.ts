@@ -8,6 +8,7 @@ import { RestakeController } from './restake/restake.controller';
 import { RestakeService } from './restake/restake.service';
 import { RoundsModule } from './rounds/rounds.module';
 import { StatusesModule } from './statuses/statuses.module';
+import { SchedulerServiceService } from './scheduler-service/scheduler-service.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { StatusesModule } from './statuses/statuses.module';
     HistoriesModule
   ],
   controllers: [RestakeController, ],
-  providers: [RestakeService, ]
+  providers: [RestakeService, SchedulerServiceService, ]
 })
 export class AppModule {}

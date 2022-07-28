@@ -10,8 +10,7 @@ export class StatusesService {
   constructor(@InjectModel(Statuses.name) private readonly statusModel: Model<StatusesDocument>) {}
 
   async create(createStatusesDto: StatusesDto): Promise<Statuses> {
-    const createStatuses = await this.statusModel.create(createStatusesDto);
-    return createStatuses;
+    return await this.statusModel.create(createStatusesDto);
   }
 
   async findOne(): Promise<Statuses> {
@@ -19,7 +18,6 @@ export class StatusesService {
   }
 
   async update(updateStatusesDto: StatusesDto) {
-    const updateStatuses = await this.statusModel.findOneAndUpdate({}, updateStatusesDto);
-    return updateStatuses;
+    return await this.statusModel.findOneAndUpdate({}, updateStatusesDto);
   }
 }

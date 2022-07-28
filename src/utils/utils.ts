@@ -1,5 +1,3 @@
-import { CronExpression } from "@nestjs/schedule";
-
 export function spliceAsBatchTxsCount(msgs: any[], sliceCount: number): any[][] {
   const totalMsgCount = msgs.length;
   const totalTxCount = totalMsgCount / sliceCount;
@@ -19,33 +17,4 @@ export function spliceAsBatchTxsCount(msgs: any[], sliceCount: number): any[][] 
   }
 
   return messages;
-}
-
-export function convertFreequancy(freequancy: string) {
-  let text: string;
-  let cronExpression: CronExpression;
-  let nextTimeValue: number;
-  
-  switch (freequancy) {
-    case '4 Hour':
-      cronExpression = CronExpression.EVERY_4_HOURS;
-      break;
-    case '30 minutes':
-      cronExpression = CronExpression.EVERY_30_MINUTES;
-      break;
-    case '5 Minute':
-      cronExpression = CronExpression.EVERY_5_MINUTES;
-      break;
-    case '30 Seconds':
-      cronExpression = CronExpression.EVERY_30_SECONDS;
-      break;
-  }
-
-  nextTimeValue = Number(freequancy.split(' ')[0]);
-
-  return {
-    text,
-    cronExpression,
-    nextTimeValue
-  }
 }

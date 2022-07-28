@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Rounds, RoundsSchema } from '../schemas/rounds.schema';
-import { RoundsController } from './rounds.controller';
 import { RoundsService } from './rounds.service';
 
 @Module({
@@ -19,7 +18,6 @@ import { RoundsService } from './rounds.service';
       }
     }
   ])],
-  controllers: [RoundsController],
   providers: [RoundsService],
   exports: [RoundsService]
 })

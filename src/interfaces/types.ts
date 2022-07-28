@@ -1,7 +1,7 @@
 import { GrantStakingData } from "@firmachain/firma-js/dist/sdk/firmachain/authz"
 import { IRoundDetail } from "./dbTypes"
 
-export interface IFreequancy {
+export interface IFrequency {
   text: string,
   cronExpression: string,
   nextTimeValue: number
@@ -24,7 +24,7 @@ export interface IGrantsDelegator {
 }
 
 export interface IRestakeInfo {
-  freequancy: string,
+  frequency: string,
   minimumRewards: number,
   round: number,
   restakeAmount: string,

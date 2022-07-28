@@ -30,7 +30,7 @@
   MINIMUM_UFCT_REWARD_AMOUNT
    - Minimum amount of Rewards subject to Restake.
 
-  FREEQUANCY
+  FREQUENCY
    - Determines the scheduling time.
 
   BATCH_TX_COUNT
