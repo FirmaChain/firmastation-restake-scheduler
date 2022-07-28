@@ -1,13 +1,14 @@
-import { BroadcastTxResponse, BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient"
-import { CreateRoundsDto } from "src/dtos/rounds.dto";
-import { StatusesDto } from "src/dtos/statuses.dto";
-import { IRoundDetail } from "src/interfaces/dbTypes";
-import { Histories } from "src/schemas/histories.schema";
-import { Rounds } from "src/schemas/rounds.schema";
-import { Statuses } from "src/schemas/statuses.schema";
+import { BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient"
+
+import { CreateRoundsDto } from "../dtos/rounds.dto";
+import { StatusesDto } from "../dtos/statuses.dto";
+import { IRoundDetail } from "../interfaces/dbTypes";
+import { Histories } from "../schemas/histories.schema";
+import { Rounds } from "../schemas/rounds.schema";
+import { Statuses } from "../schemas/statuses.schema";
 import { CreateHistoriesDto, TxInfoDto } from "../dtos/histories.dto"
 
-const RestakeMongoDB = (isShowLog: boolean = false) => {
+const RestakeMongoDB = () => {
   const makeHistoryData = (txResults: BroadcastTxSuccess[], roundCount: number): CreateHistoriesDto => {
     let txInfoDtos: TxInfoDto[] = [];
     let isHasData: boolean = txResults.length > 0 ? true : false;

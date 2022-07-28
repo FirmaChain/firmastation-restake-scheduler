@@ -1,6 +1,6 @@
 import { GrantStakingData } from "@firmachain/firma-js/dist/sdk/firmachain/authz";
 
-const FirmaSDKHelper = () => {
+const RestakeSDKHelper = () => {
 
   function getStakeAuthzIdx(_grantStakingData: GrantStakingData[]) {
     let isCheck: number = -1;
@@ -20,4 +20,4 @@ const FirmaSDKHelper = () => {
 }
 
 
-export { FirmaSDKHelper }
+export { RestakeSDKHelper }

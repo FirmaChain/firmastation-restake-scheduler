@@ -27,11 +27,10 @@ export interface IRestakeInfo {
   frequency: string,
   minimumRewards: number,
   round: number,
-  restakeAmount: string,
   feesAmount: string,
-  userMsgCount: number,
-  nextRoundDateTime: string,
-  expiryDate: string
+  restakeAmount: string,
+  restakeCount: number,
+  nextRoundDateTime: string
 }
 
 export interface IRestakeStatusData {

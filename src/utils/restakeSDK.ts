@@ -3,7 +3,7 @@ import { BroadcastTxFailure, BroadcastTxSuccess } from "@firmachain/firma-js/dis
 import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
 
 import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC } from "../config";
-import { FirmaSDKHelper } from "./firmaSDKHelper";
+import { RestakeSDKHelper } from "./restakeSDKHelper";
 import { spliceAsBatchTxsCount } from "./utils";
 
 const RestakeSDK = async (isShowLog: boolean = false) => {
@@ -155,7 +155,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         return null;
       }
 
-      const authIdx = FirmaSDKHelper().getStakeAuthzIdx(grantDataList);
+      const authIdx = RestakeSDKHelper().getStakeAuthzIdx(grantDataList);
       const allowList = grantDataList[authIdx].authorization.allow_list.address;
       if (!allowList.includes(valoperAddress)) {
         return null;

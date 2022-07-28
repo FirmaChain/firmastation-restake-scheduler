@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { IRestakeRoundDatas } from '../interfaces/types';
+import { IRestakeInfo, IRestakeRoundDatas } from '../interfaces/types';
 import { RoundsService } from '../rounds/rounds.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { Rounds } from '../schemas/rounds.schema';
-import { Statuses } from '../schemas/statuses.schema';
+import { MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_FREQUENCY } from '../config';
 
 @Injectable()
 export class RestakeService {
@@ -13,11 +13,37 @@ export class RestakeService {
     private readonly statusesService: StatusesService
   ) {}
   
-  async getRoundStatus(): Promise<Statuses> {
-    return await this.statusesService.findOne();
+  async getRestakeInfoForStationApp(): Promise<IRestakeInfo> {
+    const roundData = await this.getLatestRound();
+    const scheduleStartDate = new Date(roundData.dateTime);
+    const nextRoundDateTime = new Date(scheduleStartDate.setHours(scheduleStartDate.getHours() + 4)).toISOString();
+
+    return {
+      frequency: RESTAKE_FREQUENCY,
+      minimumRewards: MINIMUM_UFCT_REWARD_AMOUNT,
+      round: roundData.round,
+      feesAmount: roundData.feesAmount.toString(),
+      restakeAmount: roundData.restakeAmount.toString(),
+      restakeCount: roundData.restakeCount,
+      nextRoundDateTime: nextRoundDateTime
+    }
   }
 
-  async getLatestRound() {
+  async getRestakeInfoForRestakeWeb(count: number) {
+    const statusData = await this.statusesService.findOne();
+    const roundDatas = await this.getLatestAtRound(count);
+
+    return {
+      round: statusData.nowRound,
+      restakeAmount: statusData.restakeAmount,
+      feesAmount: statusData.feesAmount,
+      restakeCount: statusData.restakeCount,
+      nextRoundDateTime: statusData.nextRoundDateTime,
+      roundDatas: roundDatas
+    };
+  }
+
+  private async getLatestRound() {
     const latestData = await this.roundsService.findLatest();
     const roundDetails = latestData.details;
     
@@ -37,11 +63,12 @@ export class RestakeService {
       round: latestData.round,
       feesAmount: totalFeesAmount,
       restakeAmount: totalRestakeAmount,
-      restakeCount: totalRestakeCount
+      restakeCount: totalRestakeCount,
+      dateTime: latestData.dateTime
     };
   }
 
-  async getLatestAtRound(count: number): Promise<IRestakeRoundDatas[]> {
+  private async getLatestAtRound(count: number): Promise<IRestakeRoundDatas[]> {
     const roundsData: Rounds[] = await this.roundsService.findLatestAt(count);
     let retData: IRestakeRoundDatas[] = [];
 
