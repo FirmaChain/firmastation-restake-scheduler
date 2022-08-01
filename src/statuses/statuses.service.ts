@@ -14,6 +14,12 @@ export class StatusesService {
   }
 
   async findOne(): Promise<Statuses> {
+    let statusCount = await this.statusModel.count();
+
+    if (statusCount === 0) {
+      return null;
+    }
+    
     return this.statusModel.findOne().exec();
   }
 

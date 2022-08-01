@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { IRestakeInfo, IRestakeRoundDatas } from '../interfaces/types';
+import { IRestakeInfo, IRestakeRoundData } from '../interfaces/types';
 import { RoundsService } from '../rounds/rounds.service';
 import { StatusesService } from '../statuses/statuses.service';
-import { Rounds } from '../schemas/rounds.schema';
 import { MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_FREQUENCY } from '../config';
+import { ScheduleDate } from '../utils/scheduleDate';
 
 @Injectable()
 export class RestakeService {
@@ -14,90 +14,95 @@ export class RestakeService {
   ) {}
   
   async getRestakeInfoForStationApp(): Promise<IRestakeInfo> {
-    const roundData = await this.getLatestRound();
-    const scheduleStartDate = new Date(roundData.dateTime);
-    const nextRoundDateTime = new Date(scheduleStartDate.setHours(scheduleStartDate.getHours() + 4)).toISOString();
+    let frequency = RESTAKE_FREQUENCY;
+    let minimumRewards = MINIMUM_UFCT_REWARD_AMOUNT;
+    let round = 0;
+    let feesAmount = 0;
+    let restakeAmount = 0;
+    let restakeCount = 0;
+    let nextRoundDateTime = ScheduleDate().next();
 
-    return {
-      frequency: RESTAKE_FREQUENCY,
-      minimumRewards: MINIMUM_UFCT_REWARD_AMOUNT,
-      round: roundData.round,
-      feesAmount: roundData.feesAmount.toString(),
-      restakeAmount: roundData.restakeAmount.toString(),
-      restakeCount: roundData.restakeCount,
-      nextRoundDateTime: nextRoundDateTime
+    const latestData = await this.roundsService.findLatest();
+
+    if (latestData !== null) {
+      const roundDetails = latestData.details;
+
+      for (let i = 0; i < roundDetails.length; i++) {
+        const roundDetail = roundDetails[i];
+        
+        feesAmount += roundDetail.feesAmount;
+        restakeAmount += roundDetail.restakeAmount;
+        restakeCount += roundDetail.restakeCount;
+      }
     }
+    
+    return {
+      frequency: frequency,
+      minimumRewards: minimumRewards,
+      round: round,
+      feesAmount: feesAmount.toString(),
+      restakeAmount: restakeAmount.toString(),
+      restakeCount: restakeCount,
+      nextRoundDateTime: nextRoundDateTime
+    };
   }
 
   async getRestakeInfoForRestakeWeb(count: number) {
+    let round = 0;
+    let feesAmount = 0;
+    let restakeAmount = 0;
+    let restakeCount = 0;
+    let roundDatas = [];
+    let nextRoundDateTime = ScheduleDate().next();
+  
+    // Status Data
     const statusData = await this.statusesService.findOne();
-    const roundDatas = await this.getLatestAtRound(count);
+    
+    if (statusData !== null) {
+      round = statusData.nowRound;
+      feesAmount = statusData.feesAmount;
+      restakeAmount = statusData.restakeAmount;
+      restakeCount = statusData.restakeCount;
+    }
+
+    // Round Data
+    const rounds = await this.roundsService.findLatestAt(count);
+
+    if (rounds.length !== 0) {
+      for (let i = 0; i < rounds.length; i++) {
+        const round = rounds[i];
+
+        let roundFeesAmount: number = 0;
+        let roundRestakeAmount: number = 0;
+        let roundRestakeCount: number = 0;
+
+        for (let j = 0; j < round.details.length; j++) {
+          const roundDetail = round.details[j];
+  
+          roundFeesAmount += roundDetail.feesAmount;
+          roundRestakeAmount += roundDetail.restakeAmount;
+          roundRestakeCount += roundDetail.restakeCount;
+        }
+  
+        const data: IRestakeRoundData = {
+          round: round.round,
+          feesAmount: roundFeesAmount,
+          restakeAmount: roundRestakeAmount,
+          restakeCount: roundRestakeCount,
+          roundDetails: round.details
+        }
+  
+        roundDatas.push(data);
+      }
+    }
 
     return {
-      round: statusData.nowRound,
-      restakeAmount: statusData.restakeAmount,
-      feesAmount: statusData.feesAmount,
-      restakeCount: statusData.restakeCount,
-      nextRoundDateTime: statusData.nextRoundDateTime,
+      round: round,
+      feesAmount: feesAmount,
+      restakeAmount: restakeAmount,
+      restakeCount: restakeCount,
+      nextRoundDateTime: nextRoundDateTime,
       roundDatas: roundDatas
     };
-  }
-
-  private async getLatestRound() {
-    const latestData = await this.roundsService.findLatest();
-    const roundDetails = latestData.details;
-    
-    let totalFeesAmount = 0;
-    let totalRestakeAmount = 0;
-    let totalRestakeCount = 0;
-
-    for (let i = 0; i < roundDetails.length; i++) {
-      const roundDetail = roundDetails[i];
-      
-      totalFeesAmount += roundDetail.feesAmount;
-      totalRestakeAmount += roundDetail.restakeAmount;
-      totalRestakeCount += roundDetail.restakeCount;
-    }
-
-    return {
-      round: latestData.round,
-      feesAmount: totalFeesAmount,
-      restakeAmount: totalRestakeAmount,
-      restakeCount: totalRestakeCount,
-      dateTime: latestData.dateTime
-    };
-  }
-
-  private async getLatestAtRound(count: number): Promise<IRestakeRoundDatas[]> {
-    const roundsData: Rounds[] = await this.roundsService.findLatestAt(count);
-    let retData: IRestakeRoundDatas[] = [];
-
-    for (let i = 0; i < roundsData.length; i++) {
-      const round = roundsData[i];
-
-      let roundRestakeAmount: number = 0;
-      let roundFeesAmount: number = 0;
-      let roundRestakeCount: number = 0;
-
-      for (let j = 0; j < round.details.length; j++) {
-        const roundDetail = round.details[j];
-
-        roundRestakeAmount += roundDetail.restakeAmount;
-        roundFeesAmount += roundDetail.feesAmount;
-        roundRestakeCount += roundDetail.restakeCount;
-      }
-
-      const elemData: IRestakeRoundDatas = {
-        round: round.round,
-        restakeAmount: roundRestakeAmount,
-        feesAmount: roundFeesAmount,
-        restakeCount: roundRestakeCount,
-        roundDetails: round.details
-      }
-
-      retData.push(elemData);
-    }
-
-    return retData;
   }
 }

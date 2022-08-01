@@ -4,10 +4,10 @@ import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/an
 
 import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC } from "../config";
 import { RestakeSDKHelper } from "./restakeSDKHelper";
-import { spliceAsBatchTxsCount } from "./utils";
+import { spliceAsBatchTxsCount } from "./batchCount";
 
 const RestakeSDK = async (isShowLog: boolean = false) => {
-  const firmaSDK = new FirmaSDK(FIRMACHAIN_CONFIG());
+  const firmaSDK = new FirmaSDK(FIRMACHAIN_CONFIG);
   const restakeWallet = await firmaSDK.Wallet.fromMnemonic(RESTAKE_MNEMONIC);
   const restakeAddress = await restakeWallet.getAddress();
 
@@ -180,7 +180,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
       let msgDelegate = StakingTxClient.msgDelegate({
         delegatorAddress: delegatorAddress,
         validatorAddress: valoperAddress,
-        amount: { denom: FIRMACHAIN_CONFIG().denom, amount: receiveRewards.toString() }
+        amount: { denom: FIRMACHAIN_CONFIG.denom, amount: receiveRewards.toString() }
       });
   
       return FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);

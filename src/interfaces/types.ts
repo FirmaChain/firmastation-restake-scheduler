@@ -39,10 +39,10 @@ export interface IRestakeStatusData {
   feesAmount: number,
   restakeCount: number,
   nextRoundDateTime: string,
-  roundDatas: IRestakeRoundDatas[]
+  roundDatas: IRestakeRoundData[]
 }
 
-export interface IRestakeRoundDatas {
+export interface IRestakeRoundData {
   round: number,
   restakeAmount: number,
   feesAmount: number,

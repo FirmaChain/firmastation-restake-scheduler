@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { IAuthTxData } from "src/interfaces/types";
+import { IAuthTxData } from "../interfaces/types";
 
 export type HistoriesDocument = Histories & Document;
 

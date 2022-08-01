@@ -22,11 +22,23 @@ export class RoundsService {
   }
 
   async findLatest(): Promise<Rounds> {
+    let roundCount = await this.roundsModel.count();
+
+    if (roundCount === 0) {
+      return null;
+    }
+
     const roundData = await this.roundsModel.find().sort({ round: -1 }).limit(1);
     return roundData[0];
   }
 
   async findLatestAt(count: number): Promise<Rounds[]> {
+    let roundCount = await this.roundsModel.count();
+    
+    if (roundCount === 0) {
+      return [];
+    }
+
     return await this.roundsModel.find().sort({ round: -1 }).limit(count);
   }
 }

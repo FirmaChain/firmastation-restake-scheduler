@@ -28,7 +28,7 @@ const RestakeMongoDB = () => {
     }
 
     return {
-      round: roundCount + 1,
+      round: roundCount,
       isHasData: isHasData,
       txInfos: txInfoDtos
     };

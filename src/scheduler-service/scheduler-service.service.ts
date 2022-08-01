@@ -29,16 +29,17 @@ export class SchedulerServiceService {
     timeZone: 'Etc/UTC'
   })
   async handleCron() {
-    console.log(`[INFO - Handling] Cron handling: ${new Date().toISOString()}`);
-
     if (this.isEnableErrorCronHandling) {
       console.log(`[WARN - Handling] Error handling cron is running`);
       return ;
     }
 
     try {
+      console.log(`[INFO - Handling] Cron handling: ${new Date().toISOString()}`);
+
       await this.restakeSchedule();
       this.isEnableErrorCronHandling = false;
+
     } catch (e) {
       console.log(`[ERROR - Handling] Can't restake schedule. Start error clone handing`);
       this.isEnableErrorCronHandling = true;
@@ -50,16 +51,20 @@ export class SchedulerServiceService {
     timeZone: 'Etc/UTC'
   })
   async errorHandleCron() {
-    console.log(`[INFO - Error Handling] Error cron handling: ${new Date().toISOString()}`);
-    if (!this.isEnableErrorCronHandling) {
-      console.log(`[WARN - Error Handling] Handling cron is running`);
-    }
-
     if (this.errorHandlingTryCount >= 6) {
       this.errorHandlingTryCount = 0;
       this.isEnableErrorCronHandling = false;
+
+      // TODO (Failed round write in db)
     }
+
+    if (this.isEnableErrorCronHandling === false) {
+      console.log(`[WARN - Error Handling] Handling cron is running`);
+      return ;
+    }
+
     try {
+      console.log(`[INFO - Error Handling] Error cron handling: ${new Date().toISOString()}`);
       await this.restakeSchedule();
       
       this.isEnableErrorCronHandling = false;
@@ -79,12 +84,25 @@ export class SchedulerServiceService {
 
     // MongoDB
     const restakeMongoDB = RestakeMongoDB();
+    let roundCount: number = 0;
     let historyResult: Histories;
     let roundResult: Rounds;
     let statusResult: Statuses;
 
     try {
-      const roundCount = await this.historiesService.getCount();
+      roundCount = await this.historiesService.getCount();
+      roundCount += 1;
+    } catch (e) {
+      console.log(`[ERROR] Can't round count`);
+    }
+
+    // Can't restake process. But normal flow(no users with the minimum reward.)
+    if (transactionResults.length === 0) {
+      historyResult = { isHasData: false, round: roundCount, txInfos: [] };
+      roundResult = { round: roundCount, dateTime: scheduleStartDate.toISOString(), details: [], isHasData: false }
+    }
+
+    try {
       const historyData = restakeMongoDB.makeHistoryData(transactionResults, roundCount);
       historyResult = await this.historiesService.create(historyData);
     } catch (e) {
