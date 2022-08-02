@@ -1,5 +1,8 @@
+import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
 import { GrantStakingData } from "@firmachain/firma-js/dist/sdk/firmachain/authz"
+
 import { IRoundDetail } from "./dbTypes"
+import { BroadcastTxFailure, BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient";
 
 export interface IFrequency {
   text: string,
@@ -76,7 +79,7 @@ export interface IAuthTxData {
 
 export interface ITxMessageAndGasData {
   gasEstimation: number,
-  excuteData: any[]
+  executeData: any[]
 }
 
 export interface IStakingParseData {
@@ -91,4 +94,24 @@ export interface ITransactionParseData {
   fees: number,
   txHash: string,
   stakeInfos: IStakingParseData[]
+}
+
+export interface IExecuteMsg {
+  executeMsg: Any,
+  executeTarget: IRestakeTarget
+}
+
+export interface IRestakeTarget {
+  valoperAddress: string,
+  delegatorAddress: string
+}
+
+export interface IExecuteTxFailure {
+  restakeTxResult: BroadcastTxSuccess | BroadcastTxFailure,
+  restakeTarget: IRestakeTarget[]
+}
+
+export interface IRestakeResult {
+  restakeSuccessTxs: (BroadcastTxSuccess | BroadcastTxFailure)[],
+  restakeFailedTxs: IExecuteTxFailure[]
 }

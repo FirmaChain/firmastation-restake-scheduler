@@ -16,7 +16,7 @@ export class RestakeService {
   async getRestakeInfoForStationApp(): Promise<IRestakeInfo> {
     let frequency = RESTAKE_FREQUENCY;
     let minimumRewards = MINIMUM_UFCT_REWARD_AMOUNT;
-    let round = 0;
+    let round = 1;
     let feesAmount = 0;
     let restakeAmount = 0;
     let restakeCount = 0;
@@ -25,6 +25,7 @@ export class RestakeService {
     const latestData = await this.roundsService.findLatest();
 
     if (latestData !== null) {
+      round = latestData.round;
       const roundDetails = latestData.details;
 
       for (let i = 0; i < roundDetails.length; i++) {

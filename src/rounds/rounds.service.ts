@@ -41,4 +41,8 @@ export class RoundsService {
 
     return await this.roundsModel.find().sort({ round: -1 }).limit(count);
   }
+
+  async count(): Promise<number> {
+    return await this.roundsModel.count();
+  }
 }

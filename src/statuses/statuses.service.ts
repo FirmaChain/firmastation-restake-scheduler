@@ -26,4 +26,8 @@ export class StatusesService {
   async update(updateStatusesDto: StatusesDto) {
     return await this.statusModel.findOneAndUpdate({}, updateStatusesDto);
   }
+
+  async count(): Promise<number> {
+    return await this.statusModel.count();
+  }
 }

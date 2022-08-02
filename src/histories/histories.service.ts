@@ -21,7 +21,7 @@ export class HistoriesService {
     return await this.historiesModel.findOne({ round: round }).exec();
   }
 
-  async getCount(): Promise<number> {
-    return await this.historiesModel.count({});
+  async count(): Promise<number> {
+    return await this.historiesModel.count();
   }
 }

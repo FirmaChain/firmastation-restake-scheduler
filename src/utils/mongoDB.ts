@@ -1,4 +1,4 @@
-import { BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient"
+import { BroadcastTxResponse } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient"
 
 import { CreateRoundsDto } from "../dtos/rounds.dto";
 import { StatusesDto } from "../dtos/statuses.dto";
@@ -9,15 +9,15 @@ import { Statuses } from "../schemas/statuses.schema";
 import { CreateHistoriesDto, TxInfoDto } from "../dtos/histories.dto"
 
 const RestakeMongoDB = () => {
-  const makeHistoryData = (txResults: BroadcastTxSuccess[], roundCount: number): CreateHistoriesDto => {
+  const makeHistoryData = (txResults: BroadcastTxResponse[], roundCount: number): CreateHistoriesDto => {
     let txInfoDtos: TxInfoDto[] = [];
     let isHasData: boolean = txResults.length > 0 ? true : false;
 
     for (let i = 0; i < txResults.length; i++) {
-      const txResult: BroadcastTxSuccess = txResults[i];
+      const txResult: BroadcastTxResponse = txResults[i];
       const txInfo: TxInfoDto = {
-        gasUsed: txResult.gasUsed,
-        gasWanted: txResult.gasWanted,
+        gasUsed: txResult['gasUsed'],
+        gasWanted: txResult['gasWanted'],
         height: txResult.height,
         txHash: txResult.transactionHash,
         rawlog: txResult.rawLog,
@@ -34,7 +34,7 @@ const RestakeMongoDB = () => {
     };
   }
 
-  const makeRoundData = (histories: Histories, scheduleStartDate: Date): CreateRoundsDto => {
+  const makeRoundData = (histories: Histories, scheduleStartDate: string): CreateRoundsDto => {
     let txInfos = histories.txInfos;
     let roundDetails: IRoundDetail[] = [];
 
@@ -77,7 +77,7 @@ const RestakeMongoDB = () => {
     return {
       round: histories.round,
       isHasData: histories.isHasData,
-      dateTime: scheduleStartDate.toISOString(),
+      dateTime: scheduleStartDate,
       details: roundDetails
     };
   }

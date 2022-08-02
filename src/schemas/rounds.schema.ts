@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+
 import { IRoundDetail } from "../interfaces/dbTypes";
 
 export type RoundsDocument = Rounds & Document;

@@ -5,6 +5,7 @@ import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/an
 import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC } from "../config";
 import { RestakeSDKHelper } from "./restakeSDKHelper";
 import { spliceAsBatchTxsCount } from "./batchCount";
+import { IExecuteMsg, IExecuteTxFailure, IRestakeResult, IRestakeTarget } from "../interfaces/types";
 
 const RestakeSDK = async (isShowLog: boolean = false) => {
   const firmaSDK = new FirmaSDK(FIRMACHAIN_CONFIG);
@@ -12,63 +13,112 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
   const restakeAddress = await restakeWallet.getAddress();
 
   // public (Use only this function externally)
-  const restakeProcess = async (): Promise<BroadcastTxSuccess[]> => {
-    let executeMsgs = [];
+  const getRestakeTargets = async (): Promise<IRestakeTarget[]> => {
+    let executeTarget: IRestakeTarget[] = [];
     let valoperAddresses = await getValoperAddresses();
-
     for (let i = 0; i < valoperAddresses.length; i++) {
       const valoperAddress = valoperAddresses[i];
       const delegators = await getDelegatorsOfValidator(valoperAddress);
 
       for (let j = 0; j < delegators.length; j++) {
         const delegatorAddress = delegators[j];
-
         const delegatorRewards = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
         if (delegatorRewards === 0) {
           continue;
         }
 
-        const executeMsg = await makeExecuteMessage(delegatorAddress, restakeAddress, valoperAddress, delegatorRewards);
-        if (executeMsg === null) {
-          continue;
-        }
-
-        executeMsgs.push(executeMsg);
+        executeTarget.push({
+          delegatorAddress: delegatorAddress,
+          valoperAddress: valoperAddress
+        });
       }
     }
 
-    if (executeMsgs.length === 0) {
-      return null;
+    return executeTarget;
+  }
+
+  // public (Use only this function externally)
+  const makeExecuteMsgs = async (restakeTargets: IRestakeTarget[]) => {
+    let executeMsgs = [];
+    for (let i = 0; i < restakeTargets.length; i++) {
+      const delegatorAddress = restakeTargets[i].delegatorAddress;
+      const valoperAddress = restakeTargets[i].valoperAddress;
+
+      const delegatorRewards = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
+      if (delegatorRewards === 0) {
+        continue;
+      }
+
+      const executeMsg = await makeExecuteMessage(delegatorAddress, restakeAddress, valoperAddress, delegatorRewards);
+      if (executeMsg === null) {
+        continue;
+      }
+
+      executeMsgs.push({
+        executeMsg: executeMsg,
+        executeTarget: {
+          delegatorAddress: delegatorAddress,
+          valoperAddress: valoperAddress
+        }
+      });
     }
+
+    return executeMsgs;
+  }
+
+  // public (Use only this function externally)
+  const executeRestake = async (executeMsgs: IExecuteMsg[]): Promise<IRestakeResult> => {
+    let restakeSuccessTxs: (BroadcastTxSuccess | BroadcastTxFailure)[] = [];
+    let restakeFailedTxs: IExecuteTxFailure[] = [];
 
     const spliceBatchCountData = spliceAsBatchTxsCount(executeMsgs, BATCH_TX_COUNT);
-    let restakeTxs = [];
 
-    for (let k = 0; k < spliceBatchCountData.length; k++) {
-      const batchTxMessages = spliceBatchCountData[k];
-      const gasEstimation = await calcGasEstimation(batchTxMessages);
-      const restakeTxResult = await executeAllowanceMessage(batchTxMessages, gasEstimation);
+    for (let i = 0; i < spliceBatchCountData.length; i++) {
+      const batchTxMessages = spliceBatchCountData[i];
 
-      restakeTxs.push(restakeTxResult);
+      let gasExecuteMsgs: Any[] = [];
+      let restakeTarget: IRestakeTarget[] = [];
+
+      for (let j = 0; j < batchTxMessages.length; j++) {
+        const batchTxMessage = batchTxMessages[j];
+
+        gasExecuteMsgs.push(batchTxMessage.executeMsg);
+        restakeTarget.push(batchTxMessage.executeTarget);
+      }
+
+      const gasEstimation = await calcGasEstimation(gasExecuteMsgs);
+      const restakeTxResult = await executeAllowanceMessage(gasExecuteMsgs, gasEstimation);
+
+      if (restakeTxResult.code === 0) {
+        restakeSuccessTxs.push(restakeTxResult);
+      } else {
+        restakeFailedTxs.push({
+          restakeTxResult,
+          restakeTarget
+        });
+      }
     }
 
-    return restakeTxs;
+    return {
+      restakeSuccessTxs,
+      restakeFailedTxs
+    }
   }
 
   // private (Only used in this script)
-  const getValoperAddresses = async () => {
+  const getValoperAddresses = async (): Promise<string[]> => {
     try {
       let validatorInfo = await firmaSDK.Staking.getValidatorList();
       let validatorList = validatorInfo.dataList;
       let paginationKey = validatorInfo.pagination.next_key;
-  
+
       while (paginationKey !== null) {
         const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(paginationKey);
-  
+
         validatorList.push(...nextValidatorInfo.dataList);
         paginationKey = nextValidatorInfo.pagination.next_key;
       }
-  
+
       return filterJailedValidator(validatorList);
     } catch (e) {
       if (isShowLog) console.log(`[ERROR] Can't get valoperAddresses`);
@@ -78,7 +128,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
 
   const filterJailedValidator = (validators: ValidatorDataType[]): string[] => {
     let valoperAddresses = [];
-    
+
     validators.map(validator => {
       if (!validator.jailed) {
         valoperAddresses.push(validator.operator_address);
@@ -94,14 +144,14 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
       let delegationInfo = await firmaSDK.Staking.getDelegationListFromValidator(valoperAddress);
       let delegationList = delegationInfo.dataList;
       let paginationKey = delegationInfo.pagination.next_key;
-  
+
       while (paginationKey !== null) {
         const nextDelegationInfo = await firmaSDK.Staking.getDelegationListFromValidator(valoperAddress);
-  
+
         delegationList.push(...nextDelegationInfo.dataList);
         paginationKey = nextDelegationInfo.pagination.next_key;
       }
-  
+
       return filterDelegatorZeroAmount(delegationList);
     } catch (e) {
       if (isShowLog) console.log(`[ERROR] Can't get delegation list from validator`);
@@ -167,11 +217,11 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
 
       if (maxToken) {
         maxTokenAmount = Number(maxToken.amount);
-  
+
         if (maxTokenAmount <= 0) {
           return null;
         }
-  
+
         if (maxTokenAmount < rewards) {
           receiveRewards = maxTokenAmount;
         }
@@ -182,7 +232,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         validatorAddress: valoperAddress,
         amount: { denom: FIRMACHAIN_CONFIG.denom, amount: receiveRewards.toString() }
       });
-  
+
       return FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);
     } catch (e) {
       if (isShowLog) console.log(`[ERROR] Can't get staking grant data - ${delegatorAddress}`);
@@ -202,16 +252,18 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
   // private (Only used in this script)
   const executeAllowanceMessage = async (messages: any[], gasEsitmation: number): Promise<BroadcastTxSuccess | BroadcastTxFailure> => {
     const fee = Math.ceil(gasEsitmation * 0.1);
-    
+
     try {
       return await firmaSDK.Authz.executeAllowance(restakeWallet, messages, { fee: fee, gas: gasEsitmation });
     } catch (e) {
-      return null;
+      return e;
     }
   }
 
   return {
-    restakeProcess,
+    makeExecuteMsgs,
+    getRestakeTargets,
+    executeRestake,
   }
 }
 
