@@ -2,7 +2,7 @@ import { AuthorizationType, DelegationInfo, FirmaSDK, FirmaUtil, StakingTxClient
 import { BroadcastTxFailure, BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient";
 import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
 
-import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC } from "../config";
+import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, RESTAKE_MNEMONIC } from "../config";
 import { RestakeSDKHelper } from "./restakeSDKHelper";
 import { spliceAsBatchTxsCount } from "./batchCount";
 import { IExecuteMsg, IExecuteTxFailure, IRestakeResult, IRestakeTarget } from "../interfaces/types";
@@ -15,21 +15,51 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
   // public (Use only this function externally)
   const getRestakeTargets = async (): Promise<IRestakeTarget[]> => {
     let executeTarget: IRestakeTarget[] = [];
-    let valoperAddresses = await getValoperAddresses();
+    let valoperInfos = await getValoperAddresses();
+
+    if (valoperInfos.isValid === false) {
+      return [];
+    }
+
+    let valoperAddresses = valoperInfos.addresses;
+
     for (let i = 0; i < valoperAddresses.length; i++) {
       const valoperAddress = valoperAddresses[i];
       const delegators = await getDelegatorsOfValidator(valoperAddress);
 
       for (let j = 0; j < delegators.length; j++) {
         const delegatorAddress = delegators[j];
-        const delegatorRewards = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
-        if (delegatorRewards === 0) {
+
+        // Check authz
+        const grantsMaxToken = await getAuthzGrantsMaxToken(delegatorAddress, valoperAddress);
+        if (grantsMaxToken.isValid === false) {
+          continue;
+        } else {
+          if (grantsMaxToken.maxToken) {
+            let maxTokenAmount = Number(grantsMaxToken.maxToken.amount);
+
+            if (maxTokenAmount <= 0) {
+              continue ;
+            }
+          }
+        }
+
+        // Check rewards
+        const rewardInfo = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
+        if (rewardInfo.isValid === false) {
+          continue;
+        }
+
+        // Check withdraw address
+        const isSameAddress = await checkWidthdrawAddress(delegatorAddress);
+        if (isSameAddress === false) {
           continue;
         }
 
         executeTarget.push({
           delegatorAddress: delegatorAddress,
-          valoperAddress: valoperAddress
+          valoperAddress: valoperAddress,
+          rewards: rewardInfo.rewards
         });
       }
     }
@@ -43,16 +73,15 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     for (let i = 0; i < restakeTargets.length; i++) {
       const delegatorAddress = restakeTargets[i].delegatorAddress;
       const valoperAddress = restakeTargets[i].valoperAddress;
+      const rewards = restakeTargets[i].rewards;
 
-      const delegatorRewards = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
-      if (delegatorRewards === 0) {
-        continue;
-      }
+      let msgDelegate = StakingTxClient.msgDelegate({
+        delegatorAddress: delegatorAddress,
+        validatorAddress: valoperAddress,
+        amount: { denom: FIRMACHAIN_CONFIG.denom, amount: rewards.toString() }
+      });
 
-      const executeMsg = await makeExecuteMessage(delegatorAddress, restakeAddress, valoperAddress, delegatorRewards);
-      if (executeMsg === null) {
-        continue;
-      }
+      const executeMsg = FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);
 
       executeMsgs.push({
         executeMsg: executeMsg,
@@ -86,8 +115,21 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         restakeTarget.push(batchTxMessage.executeTarget);
       }
 
-      const gasEstimation = await calcGasEstimation(gasExecuteMsgs);
-      const restakeTxResult = await executeAllowanceMessage(gasExecuteMsgs, gasEstimation);
+      const gasEstimationInfo = await calcGasEstimation(gasExecuteMsgs);
+      if (gasEstimationInfo.isValid === false) {
+        continue ;
+      }
+
+      // TODO (not enough wallet balance)
+      // const restakeWalletAmount = await firmaSDK.Bank.getBalance(restakeAddress);
+
+      // if (restakeWalletAmount < gasEstimationInfo.gasEstimation) {
+      //   return {
+      //     restakeSuccessTxs: [],
+
+      //   }
+      // }
+      const restakeTxResult = await executeAllowanceMessage(gasExecuteMsgs, gasEstimationInfo.gasEstimation);
 
       if (restakeTxResult.code === 0) {
         restakeSuccessTxs.push(restakeTxResult);
@@ -106,7 +148,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
   }
 
   // private (Only used in this script)
-  const getValoperAddresses = async (): Promise<string[]> => {
+  const getValoperAddresses = async (): Promise<{isValid: boolean, addresses: string[]}> => {
     try {
       let validatorInfo = await firmaSDK.Staking.getValidatorList();
       let validatorList = validatorInfo.dataList;
@@ -119,10 +161,18 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         paginationKey = nextValidatorInfo.pagination.next_key;
       }
 
-      return filterJailedValidator(validatorList);
+      let addresses = filterJailedValidator(validatorList);
+
+      return {
+        isValid: true,
+        addresses: addresses
+      } 
     } catch (e) {
       if (isShowLog) console.log(`[ERROR] Can't get valoperAddresses`);
-      return [];
+      return {
+        isValid: false,
+        addresses: []
+      };
     }
   }
 
@@ -173,79 +223,86 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
   }
 
   // private (Only used in this script)
-  const getRewardsFromDelegator = async (delegatorAddress: string, valoperAddress: string): Promise<number> => {
+  const getAuthzGrantsMaxToken = async (delegatorAddress: string, valoperAddress: string) => {
     try {
-      const withdrawAddress = await firmaSDK.Distribution.getWithdrawAddress(delegatorAddress);
+      const stakingGrantData = await firmaSDK.Authz.getStakingGrantData(delegatorAddress, restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE);
+      const grantDataList = stakingGrantData.dataList;
 
-      if (withdrawAddress !== delegatorAddress) {
-        return 0;
+      const authIdx = RestakeSDKHelper().getStakeAuthzIdx(grantDataList);
+      const allowList = grantDataList[authIdx].authorization.allow_list.address;
+
+      if (!allowList.includes(valoperAddress)) {
+        return {
+          isValid: false,
+          message: 'Not allowed validator',
+          maxToken: undefined
+        };
       }
 
+      let maxToken = grantDataList[authIdx].authorization.max_tokens;
+
+      return {
+        isValid: true,
+        message: 'sucess',
+        maxToken: maxToken
+      };
+    } catch (e) {
+      if (isShowLog) console.log(`[ERROR] Can't get staking grant data - ${delegatorAddress}`);
+
+      return {
+        isValid: false,
+        message: `Unable to get staking grant data`,
+        maxToken: undefined
+      };
+    }
+  }
+
+  // private (Only used in this script)
+  const checkWidthdrawAddress = async (delegatorAddress: string): Promise<boolean> => {
+    const withdrawAddress = await firmaSDK.Distribution.getWithdrawAddress(delegatorAddress);
+
+    if (delegatorAddress === withdrawAddress) {
+      return true;
+    }
+
+    return false;
+  }
+  
+  // private (Only used in this script)
+  const getRewardsFromDelegator = async (delegatorAddress: string, valoperAddress: string): Promise<{rewards: number, isValid: boolean}> => {
+    try {
       const rewardsOrigin = await firmaSDK.Distribution.getRewardInfo(delegatorAddress, valoperAddress);
       const rewardsFCT = FirmaUtil.getFCTStringFromUFCT(Number(rewardsOrigin));
       const rewardsUFCT = FirmaUtil.getUFCTStringFromFCT(Number(rewardsFCT));
       const rewards = Number(rewardsUFCT);
 
-      if (rewards > MINIMUM_UFCT_REWARD_AMOUNT) {
-        return rewards;
+      return {
+        rewards: rewards,
+        isValid: true
       }
-
-      return 0;
     } catch (e) {
       if (isShowLog) console.log(`[ERROR] Can't get reward info`);
-      return 0;
+      return {
+        rewards: -1,
+        isValid: false
+      }
     }
   }
 
   // private (Only used in this script)
-  const makeExecuteMessage = async (delegatorAddress: string, restakeAddress: string, valoperAddress: string, rewards: number): Promise<Any> => {
+  const calcGasEstimation = async (anyData: Any[]): Promise<{isValid: boolean, gasEstimation: number}> => {
     try {
-      let grantDataList = (await firmaSDK.Authz.getStakingGrantData(delegatorAddress, restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE)).dataList;
-      if (grantDataList === null || grantDataList === undefined || grantDataList.length === 0) {
-        return null;
+      let gasEstimation = await firmaSDK.Authz.getGasEstimationExecuteAllowance(restakeWallet, anyData);
+
+      return {
+        isValid: true,
+        gasEstimation: gasEstimation
       }
-
-      const authIdx = RestakeSDKHelper().getStakeAuthzIdx(grantDataList);
-      const allowList = grantDataList[authIdx].authorization.allow_list.address;
-      if (!allowList.includes(valoperAddress)) {
-        return null;
-      }
-
-      let maxToken = grantDataList[authIdx].authorization.max_tokens;
-      let receiveRewards: number = rewards;
-      let maxTokenAmount: number = 0;
-
-      if (maxToken) {
-        maxTokenAmount = Number(maxToken.amount);
-
-        if (maxTokenAmount <= 0) {
-          return null;
-        }
-
-        if (maxTokenAmount < rewards) {
-          receiveRewards = maxTokenAmount;
-        }
-      }
-
-      let msgDelegate = StakingTxClient.msgDelegate({
-        delegatorAddress: delegatorAddress,
-        validatorAddress: valoperAddress,
-        amount: { denom: FIRMACHAIN_CONFIG.denom, amount: receiveRewards.toString() }
-      });
-
-      return FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);
     } catch (e) {
-      if (isShowLog) console.log(`[ERROR] Can't get staking grant data - ${delegatorAddress}`);
-      return null;
-    }
-  }
-
-  // private (Only used in this script)
-  const calcGasEstimation = async (anyData: Any[]): Promise<number> => {
-    try {
-      return await firmaSDK.Authz.getGasEstimationExecuteAllowance(restakeWallet, anyData);
-    } catch (e) {
-      return 0;
+      return {
+        isValid: false,
+        gasEstimation: -1
+      }
     }
   }
 

@@ -50,6 +50,7 @@ export interface IRestakeRoundData {
   restakeAmount: number,
   feesAmount: number,
   restakeCount: number,
+  startDateTime: string,
   roundDetails: IRoundDetail[]
 }
 
@@ -103,7 +104,8 @@ export interface IExecuteMsg {
 
 export interface IRestakeTarget {
   valoperAddress: string,
-  delegatorAddress: string
+  delegatorAddress: string,
+  rewards: number
 }
 
 export interface IExecuteTxFailure {

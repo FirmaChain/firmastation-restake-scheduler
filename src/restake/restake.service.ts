@@ -90,6 +90,7 @@ export class RestakeService {
           feesAmount: roundFeesAmount,
           restakeAmount: roundRestakeAmount,
           restakeCount: roundRestakeCount,
+          startDateTime: round.dateTime,
           roundDetails: round.details
         }
   
