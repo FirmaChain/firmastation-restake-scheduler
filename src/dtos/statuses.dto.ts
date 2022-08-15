@@ -1,7 +1,7 @@
 export class StatusesDto {
-  nowRound: number;
-  nextRoundDateTime: string;
-  feesAmount: number;
-  restakeAmount: number;
-  restakeCount: number;
+  readonly nowRound: number;
+  readonly nextRoundDateTime: string;
+  readonly feesAmount: number;
+  readonly restakeAmount: number;
+  readonly restakeCount: number;
 }

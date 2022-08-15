@@ -1,287 +1,257 @@
-import { AuthorizationType, DelegationInfo, FirmaSDK, FirmaUtil, StakingTxClient, ValidatorDataType } from "@firmachain/firma-js";
-import { BroadcastTxFailure, BroadcastTxSuccess } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient";
+import { AuthorizationType, FirmaSDK, FirmaUtil, StakingTxClient } from "@firmachain/firma-js";
 import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
 
-import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, RESTAKE_MNEMONIC } from "../config";
-import { RestakeSDKHelper } from "./restakeSDKHelper";
+import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC, RETRY_COUNT } from "src/config";
+import { ERROR_CALC_GAS, ERROR_EXECUTE_MESSAGE, ERROR_INSUFFICIENT, ERROR_NONE } from "src/constants/errorType";
+import { ITransactionState, IExecuteMessage, IRestakeTarget } from "src/interfaces/types";
 import { spliceAsBatchTxsCount } from "./batchCount";
-import { IExecuteMsg, IExecuteTxFailure, IRestakeResult, IRestakeTarget } from "../interfaces/types";
+import { RestakeSDKHelper } from "./restakeSDKHelper";
 
 const RestakeSDK = async (isShowLog: boolean = false) => {
   const firmaSDK = new FirmaSDK(FIRMACHAIN_CONFIG);
   const restakeWallet = await firmaSDK.Wallet.fromMnemonic(RESTAKE_MNEMONIC);
   const restakeAddress = await restakeWallet.getAddress();
 
-  // public (Use only this function externally)
-  const getRestakeTargets = async (): Promise<IRestakeTarget[]> => {
-    let executeTarget: IRestakeTarget[] = [];
-    let valoperInfos = await getValoperAddresses();
+  const getRestakeTargets = async () => {
+    const validatorAddressList = await _getValidatorAddressList();
+    const restakeTargets: IRestakeTarget[] = [];
 
-    if (valoperInfos.isValid === false) {
-      return [];
-    }
+    for (let i = 0; i < validatorAddressList.length; i++) {
+      const validatorAddress = validatorAddressList[i];
+      const delegatorAddressList = await _getDelegatorAddressList(validatorAddress);
 
-    let valoperAddresses = valoperInfos.addresses;
+      for (let j = 0; j < delegatorAddressList.length; j++) {
+        const delegatorAddress = delegatorAddressList[j];
 
-    for (let i = 0; i < valoperAddresses.length; i++) {
-      const valoperAddress = valoperAddresses[i];
-      const delegators = await getDelegatorsOfValidator(valoperAddress);
-
-      for (let j = 0; j < delegators.length; j++) {
-        const delegatorAddress = delegators[j];
-
-        // Check authz
-        const grantsMaxToken = await getAuthzGrantsMaxToken(delegatorAddress, valoperAddress);
-        if (grantsMaxToken.isValid === false) {
-          continue;
-        } else {
-          if (grantsMaxToken.maxToken) {
-            let maxTokenAmount = Number(grantsMaxToken.maxToken.amount);
-
-            if (maxTokenAmount <= 0) {
-              continue ;
-            }
-          }
-        }
-
-        // Check rewards
-        const rewardInfo = await getRewardsFromDelegator(delegatorAddress, valoperAddress);
-        if (rewardInfo.isValid === false) {
-          continue;
-        }
-
-        // Check withdraw address
-        const isSameAddress = await checkWidthdrawAddress(delegatorAddress);
-        if (isSameAddress === false) {
-          continue;
-        }
-
-        executeTarget.push({
-          delegatorAddress: delegatorAddress,
-          valoperAddress: valoperAddress,
-          rewards: rewardInfo.rewards
+        restakeTargets.push({
+          validatorAddr: validatorAddress,
+          delegatorAddr: delegatorAddress
         });
       }
     }
 
-    return executeTarget;
+    return restakeTargets;
   }
 
-  // public (Use only this function externally)
-  const makeExecuteMsgs = async (restakeTargets: IRestakeTarget[]) => {
-    let executeMsgs = [];
+  const getRestakeMessages = async (restakeTargets: IRestakeTarget[]) => {
+    let executeMessages: IExecuteMessage[] = [];
     for (let i = 0; i < restakeTargets.length; i++) {
-      const delegatorAddress = restakeTargets[i].delegatorAddress;
-      const valoperAddress = restakeTargets[i].valoperAddress;
-      const rewards = restakeTargets[i].rewards;
+      const restakeTarget = restakeTargets[i];
+      const validatorAddress = restakeTarget.validatorAddr;
+      const delegatorAddress = restakeTarget.delegatorAddr;
 
-      let msgDelegate = StakingTxClient.msgDelegate({
-        delegatorAddress: delegatorAddress,
-        validatorAddress: valoperAddress,
-        amount: { denom: FIRMACHAIN_CONFIG.denom, amount: rewards.toString() }
-      });
+      const maxTokenInfo = await _getAuthzGrantMaxToken(validatorAddress, delegatorAddress);
+      if (maxTokenInfo.isValid === false) continue;
 
-      const executeMsg = FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);
+      const rewardsInfo = await _getDelegatorRewards(validatorAddress, delegatorAddress);
+      if (rewardsInfo.isValid === false) continue;
 
-      executeMsgs.push({
-        executeMsg: executeMsg,
-        executeTarget: {
-          delegatorAddress: delegatorAddress,
-          valoperAddress: valoperAddress
+      const checkWithdrawAddr = await _checkWithdrawAddress(delegatorAddress);
+      if (checkWithdrawAddr === false) continue;
+
+      const executeMessage = await _makeExecuteMessage(validatorAddress, delegatorAddress, rewardsInfo.rewards);
+
+      executeMessages.push({
+        message: executeMessage,
+        restakeTarget: {
+          validatorAddr: validatorAddress,
+          delegatorAddr: delegatorAddress
         }
       });
     }
 
-    return executeMsgs;
+    return executeMessages;
   }
 
-  // public (Use only this function externally)
-  const executeRestake = async (executeMsgs: IExecuteMsg[]): Promise<IRestakeResult> => {
-    let restakeSuccessTxs: (BroadcastTxSuccess | BroadcastTxFailure)[] = [];
-    let restakeFailedTxs: IExecuteTxFailure[] = [];
+  const executeAllowanceMessages = async (originRestakeMessages: IExecuteMessage[]) => {
+    let successTransactionStates: ITransactionState[] = [];
+    let retryRestakeTargets: IRestakeTarget[][] = [];
 
-    const spliceBatchCountData = spliceAsBatchTxsCount(executeMsgs, BATCH_TX_COUNT);
+    let spliceRestakeMessages = spliceAsBatchTxsCount(originRestakeMessages, BATCH_TX_COUNT);
+    for (let i = 0; i < spliceRestakeMessages.length; i++) {
+      const spliceRestakeMessage = spliceRestakeMessages[i];
+      const separateRestakeData = RestakeSDKHelper().separateRestakeMessageAndTargets(spliceRestakeMessage);
+      const restakeExecuteMessages = separateRestakeData.restakeExecuteMessages;
+      const restakeExecuteTargets = separateRestakeData.restakeExecuteTargets;
 
-    for (let i = 0; i < spliceBatchCountData.length; i++) {
-      const batchTxMessages = spliceBatchCountData[i];
-
-      let gasExecuteMsgs: Any[] = [];
-      let restakeTarget: IRestakeTarget[] = [];
-
-      for (let j = 0; j < batchTxMessages.length; j++) {
-        const batchTxMessage = batchTxMessages[j];
-
-        gasExecuteMsgs.push(batchTxMessage.executeMsg);
-        restakeTarget.push(batchTxMessage.executeTarget);
-      }
-
-      const gasEstimationInfo = await calcGasEstimation(gasExecuteMsgs);
-      if (gasEstimationInfo.isValid === false) {
-        continue ;
-      }
-
-      // TODO (not enough wallet balance)
-      // const restakeWalletAmount = await firmaSDK.Bank.getBalance(restakeAddress);
-
-      // if (restakeWalletAmount < gasEstimationInfo.gasEstimation) {
-      //   return {
-      //     restakeSuccessTxs: [],
-
-      //   }
-      // }
-      const restakeTxResult = await executeAllowanceMessage(gasExecuteMsgs, gasEstimationInfo.gasEstimation);
-
-      if (restakeTxResult.code === 0) {
-        restakeSuccessTxs.push(restakeTxResult);
+      const executeTxResult = await _executeTransaction(restakeExecuteMessages);
+      executeTxResult.originRestakeTargets = restakeExecuteTargets;
+      executeTxResult.retryCount = 0;
+      executeTxResult.finalRestakeTargets = [];
+      
+      if (executeTxResult.errorType === ERROR_NONE || executeTxResult.errorType === ERROR_INSUFFICIENT) {
+        successTransactionStates.push(executeTxResult);
       } else {
-        restakeFailedTxs.push({
-          restakeTxResult,
-          restakeTarget
-        });
+        console.log(`restake failed reason: ${executeTxResult.errorType}`);
+        retryRestakeTargets.push(restakeExecuteTargets);
       }
     }
 
     return {
-      restakeSuccessTxs,
-      restakeFailedTxs
+      successTransactionStates,
+      retryRestakeTargets
     }
   }
 
-  // private (Only used in this script)
-  const getValoperAddresses = async (): Promise<{isValid: boolean, addresses: string[]}> => {
-    try {
-      let validatorInfo = await firmaSDK.Staking.getValidatorList();
-      let validatorList = validatorInfo.dataList;
-      let paginationKey = validatorInfo.pagination.next_key;
 
-      while (paginationKey !== null) {
-        const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(paginationKey);
+  const retryExecuteAllowanceMessages = async (retryRestakeTargets: IRestakeTarget[][]) => {
+    let endTransactionStates: ITransactionState[] = [];
 
-        validatorList.push(...nextValidatorInfo.dataList);
-        paginationKey = nextValidatorInfo.pagination.next_key;
+    console.log('start retry');
+    for (let i = 0; i < retryRestakeTargets.length; i++) {
+      let retryRestakeTarget = retryRestakeTargets[i];
+
+      // retry restake
+      let retryCount = 1;
+      let originRestakeTargets = retryRestakeTarget;
+      
+      while (retryRestakeTarget.length !== 0) {
+        const retryRestakeMessages = await getRestakeMessages(retryRestakeTarget);
+        const separateRestakeData = RestakeSDKHelper().separateRestakeMessageAndTargets(retryRestakeMessages);
+        const restakeExecuteMessages = separateRestakeData.restakeExecuteMessages;
+        retryRestakeTarget = separateRestakeData.restakeExecuteTargets;
+        
+        const executeTxResult = await _executeTransaction(restakeExecuteMessages);
+        
+        retryCount++;
+        if (retryCount > RETRY_COUNT || executeTxResult.errorType === ERROR_NONE || executeTxResult.errorType === ERROR_INSUFFICIENT) {
+          executeTxResult.originRestakeTargets = originRestakeTargets;
+          executeTxResult.finalRestakeTargets = retryRestakeTarget;
+          executeTxResult.retryCount = retryCount >= RETRY_COUNT ? RETRY_COUNT : retryCount;
+          executeTxResult.transactionResult = executeTxResult.transactionResult;
+          endTransactionStates.push(executeTxResult);
+
+          break;
+        } else {
+          console.log(`restake failed reason: ${executeTxResult.errorType}`);
+        }
       }
-
-      let addresses = filterJailedValidator(validatorList);
-
-      return {
-        isValid: true,
-        addresses: addresses
-      } 
-    } catch (e) {
-      if (isShowLog) console.log(`[ERROR] Can't get valoperAddresses`);
-      return {
-        isValid: false,
-        addresses: []
-      };
     }
+    return endTransactionStates;
   }
 
-  const filterJailedValidator = (validators: ValidatorDataType[]): string[] => {
-    let valoperAddresses = [];
+  const _getRestakeWalletBalance = async () => {
+    const balance = await firmaSDK.Bank.getBalance(restakeAddress);
 
-    validators.map(validator => {
-      if (!validator.jailed) {
-        valoperAddresses.push(validator.operator_address);
-      }
-    });
+    return Number(balance);
+  }
 
-    return valoperAddresses;
-  };
+  const _getValidatorAddressList = async () => {
+    let validatorInfo = await firmaSDK.Staking.getValidatorList();
+    let validatorList = validatorInfo.dataList;
+    let paginationKey = validatorInfo.pagination.next_key;
 
-  // private (Only used in this script)
-  const getDelegatorsOfValidator = async (valoperAddress: string): Promise<string[]> => {
-    try {
-      let delegationInfo = await firmaSDK.Staking.getDelegationListFromValidator(valoperAddress);
-      let delegationList = delegationInfo.dataList;
-      let paginationKey = delegationInfo.pagination.next_key;
+    let valoperAddrs: string[] = [];
 
-      while (paginationKey !== null) {
-        const nextDelegationInfo = await firmaSDK.Staking.getDelegationListFromValidator(valoperAddress);
+    while (paginationKey !== null) {
+      const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(paginationKey);
+      const nextValidatorList = nextValidatorInfo.dataList;
 
-        delegationList.push(...nextDelegationInfo.dataList);
-        paginationKey = nextDelegationInfo.pagination.next_key;
-      }
-
-      return filterDelegatorZeroAmount(delegationList);
-    } catch (e) {
-      if (isShowLog) console.log(`[ERROR] Can't get delegation list from validator`);
-      return [];
+      validatorList.push(...nextValidatorList);
+      paginationKey = nextValidatorInfo.pagination.next_key;
     }
-  }
 
-  // private (Only used in this script)
-  const filterDelegatorZeroAmount = (delegationList: DelegationInfo[]): string[] => {
-    let addresses = [];
+    for (let i = 0; i < validatorList.length; i++) {
+      const validator = validatorList[i];
 
-    delegationList.map(delegator => {
-      if (Number(delegator.balance.amount) !== 0) {
-        addresses.push(delegator.delegation.delegator_address);
+      if (validator.jailed) {
+        continue ;
       }
-    });
 
-    return addresses;
+      valoperAddrs.push(validator.operator_address);
+    }
+
+    return valoperAddrs;
   }
 
-  // private (Only used in this script)
-  const getAuthzGrantsMaxToken = async (delegatorAddress: string, valoperAddress: string) => {
+  const _getDelegatorAddressList = async (validatorAddr: string) => {
+    let delegatorAddresses: string[] = [];
+
+    let delegatorInfo = await firmaSDK.Staking.getDelegationListFromValidator(validatorAddr);
+    let delegationList = delegatorInfo.dataList;
+    let paginationKey = delegatorInfo.pagination.next_key;
+
+    while (paginationKey !== null) {
+      const nextDelegationInfo = await firmaSDK.Staking.getDelegationListFromValidator(validatorAddr, paginationKey);
+      delegationList.push(...nextDelegationInfo.dataList);
+
+      paginationKey = nextDelegationInfo.pagination.next_key;
+    }
+
+    for (let i = 0; i < delegationList.length; i++) {
+      const delegation = delegationList[i];
+
+      delegatorAddresses.push(delegation.delegation.delegator_address);
+    }
+
+    return delegatorAddresses;
+  }
+
+  const _getAuthzGrantMaxToken = async (validatorAddr: string, delegatorAddr: string) => {
     try {
-      const stakingGrantData = await firmaSDK.Authz.getStakingGrantData(delegatorAddress, restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE);
-      const grantDataList = stakingGrantData.dataList;
+      let grantInfo = await firmaSDK.Authz.getStakingGrantData(delegatorAddr, restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE);
+      let grantList = grantInfo.dataList;
+      let paginationKey = grantInfo.pagination.next_key;
+      
+      while (paginationKey !== '') {
+        const nextGrantInfo = await firmaSDK.Authz.getStakingGrantData(delegatorAddr, restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE);
+        const nextGrantList = nextGrantInfo.dataList;
 
-      const authIdx = RestakeSDKHelper().getStakeAuthzIdx(grantDataList);
-      const allowList = grantDataList[authIdx].authorization.allow_list.address;
+        grantList.push(...nextGrantList);
+        paginationKey = nextGrantInfo.pagination.next_key;
+      }
 
-      if (!allowList.includes(valoperAddress)) {
+      const authIdx = RestakeSDKHelper().getStakeAuthzIdx(grantList);
+      const allowList = grantList[authIdx].authorization.allow_list.address;
+
+      if (!allowList.includes(validatorAddr)) {
         return {
           isValid: false,
-          message: 'Not allowed validator',
           maxToken: undefined
-        };
+        }
       }
 
-      let maxToken = grantDataList[authIdx].authorization.max_tokens;
-
+      let maxToken = grantList[authIdx].authorization.max_tokens;
+      if (maxToken !== null) {
+        return {
+          isValid: false,
+          maxToken: undefined
+        }
+      }
+      
       return {
         isValid: true,
-        message: 'sucess',
         maxToken: maxToken
-      };
+      }
     } catch (e) {
-      if (isShowLog) console.log(`[ERROR] Can't get staking grant data - ${delegatorAddress}`);
+      // console.log(e);
 
       return {
         isValid: false,
-        message: `Unable to get staking grant data`,
         maxToken: undefined
-      };
+      }
     }
   }
 
-  // private (Only used in this script)
-  const checkWidthdrawAddress = async (delegatorAddress: string): Promise<boolean> => {
-    const withdrawAddress = await firmaSDK.Distribution.getWithdrawAddress(delegatorAddress);
-
-    if (delegatorAddress === withdrawAddress) {
-      return true;
-    }
-
-    return false;
-  }
-  
-  // private (Only used in this script)
-  const getRewardsFromDelegator = async (delegatorAddress: string, valoperAddress: string): Promise<{rewards: number, isValid: boolean}> => {
+  const _getDelegatorRewards = async (validatorAddr: string, delegatorAddr: string) => {
     try {
-      const rewardsOrigin = await firmaSDK.Distribution.getRewardInfo(delegatorAddress, valoperAddress);
+      const rewardsOrigin = await firmaSDK.Distribution.getRewardInfo(delegatorAddr, validatorAddr);
       const rewardsFCT = FirmaUtil.getFCTStringFromUFCT(Number(rewardsOrigin));
       const rewardsUFCT = FirmaUtil.getUFCTStringFromFCT(Number(rewardsFCT));
       const rewards = Number(rewardsUFCT);
 
+      if (rewards >= MINIMUM_UFCT_REWARD_AMOUNT) {
+        return {
+          isValid: true,
+          rewards: rewards
+        }
+      }
+
       return {
-        rewards: rewards,
-        isValid: true
+        isValid: false,
+        rewards: -2
       }
     } catch (e) {
-      if (isShowLog) console.log(`[ERROR] Can't get reward info`);
       return {
         rewards: -1,
         isValid: false
@@ -289,11 +259,31 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     }
   }
 
-  // private (Only used in this script)
-  const calcGasEstimation = async (anyData: Any[]): Promise<{isValid: boolean, gasEstimation: number}> => {
-    try {
-      let gasEstimation = await firmaSDK.Authz.getGasEstimationExecuteAllowance(restakeWallet, anyData);
+  const _checkWithdrawAddress = async (delegatorAddr: string) => {
+    const withdrawAddr = await firmaSDK.Distribution.getWithdrawAddress(delegatorAddr);
+    
+    if (delegatorAddr !== withdrawAddr)
+      return false;
 
+    return true;
+  }
+
+  const _makeExecuteMessage = async (validatorAddr: string, delegatorAddr: string, rewards: number) => {
+    let msgDelegate = StakingTxClient.msgDelegate({
+      delegatorAddress: delegatorAddr,
+      validatorAddress: validatorAddr,
+      amount: { denom: FIRMACHAIN_CONFIG.denom, amount: rewards.toString() }
+    });
+    
+    const executeMsg = FirmaUtil.getAnyData(StakingTxClient.getRegistry(), msgDelegate);
+
+    return executeMsg;
+  }
+
+  const _calcGasEstimation = async (anyData: Any[]) => {
+    try {
+      let gasEstimation = await firmaSDK.Authz.getGasEstimationExecuteAllowance(restakeWallet, anyData)
+    
       return {
         isValid: true,
         gasEstimation: gasEstimation
@@ -306,22 +296,66 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     }
   }
 
-  // private (Only used in this script)
-  const executeAllowanceMessage = async (messages: any[], gasEsitmation: number): Promise<BroadcastTxSuccess | BroadcastTxFailure> => {
-    const fee = Math.ceil(gasEsitmation * 0.1);
-
+  const _executeAllowanceMessage = async (messages: Any[], gasEstimation: number) => {
+    const fees = Math.ceil(gasEstimation * .1);
+    
     try {
-      return await firmaSDK.Authz.executeAllowance(restakeWallet, messages, { fee: fee, gas: gasEsitmation });
+      const executeResult = await firmaSDK.Authz.executeAllowance(restakeWallet, messages, { fee: fees, gas: gasEstimation });
+      return {
+        isValid: true,
+        executeResult
+      }
     } catch (e) {
-      return e;
+      return {
+        isValid: false,
+        executeResult: null
+      }
+    }
+  }
+
+  const _executeTransaction = async (messages: Any[]): Promise<ITransactionState> => {
+    const nowDate = new Date();
+    
+    const gasEstimationInfo = await _calcGasEstimation(messages);
+    if (gasEstimationInfo.isValid === false) {
+      return {
+        errorType: ERROR_CALC_GAS,
+        dateTime: nowDate.toISOString(),
+        transactionResult: null
+      };
+    }
+    
+    const restakeWalletAmount = await _getRestakeWalletBalance();
+    if (restakeWalletAmount < gasEstimationInfo.gasEstimation) {
+      return {
+        errorType: ERROR_INSUFFICIENT,
+        dateTime: nowDate.toISOString(),
+        transactionResult: null
+      }
+    }
+
+    const executeAllowanceResult = await _executeAllowanceMessage(messages, gasEstimationInfo.gasEstimation);
+    if (executeAllowanceResult.isValid === false) {
+      return {
+        errorType: ERROR_EXECUTE_MESSAGE,
+        dateTime: nowDate.toISOString(),
+        transactionResult: null
+      }
+    }
+
+    return {
+      errorType: ERROR_NONE,
+      dateTime: nowDate.toISOString(),
+      transactionResult: executeAllowanceResult.executeResult
     }
   }
 
   return {
-    makeExecuteMsgs,
     getRestakeTargets,
-    executeRestake,
+    getRestakeMessages,
+    executeAllowanceMessages,
+    retryExecuteAllowanceMessages
   }
-}
+};
 
 export { RestakeSDK };

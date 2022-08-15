@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { IRestakeResult } from '../interfaces/types';
 import { ScheduleDate } from '../utils/scheduleDate';
 
 import { HistoriesService } from '../histories/histories.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { StatusesService } from '../statuses/statuses.service';
-import { RestakeSDK } from '../utils/restakeSDK';
 import { RestakeMongoDB } from '../utils/mongoDB';
+import { RestakeSDK } from 'src/utils/restakeSDK';
+import { ITransactionState } from 'src/interfaces/types';
+import { StatusesDto } from 'src/dtos/statuses.dto';
 
 @Injectable()
 export class SchedulerServiceService {
@@ -16,48 +17,88 @@ export class SchedulerServiceService {
     private readonly roundsService: RoundsService,
     private readonly statusesService: StatusesService
   ) {
+    this.handleCron();
   }
 
-  @Cron(CronExpression.EVERY_4_HOURS, {
-    name: 'restake_handling',
-    timeZone: 'Etc/UTC'
-  })
+  // @Cron(CronExpression.EVERY_4_HOURS, {
+  //   name: 'restake_handling',
+  //   timeZone: 'Etc/UTC'
+  // })
   async handleCron() {
-    const restakeResult = await this.restakeProcess();
-    await this.writeDBProcess(restakeResult);
+    const restakeExecuteResults = await this.restakeProcess();
+    await this.writeDBProcess(restakeExecuteResults);
   }
 
-  async restakeProcess(): Promise<IRestakeResult> {
-    const restakeSDK = await RestakeSDK();
+  async restakeProcess() {
+    // restake flow
+    const restakeSDK = await RestakeSDK(false);
     const restakeTargets = await restakeSDK.getRestakeTargets();
-    const executeMsgs = await restakeSDK.makeExecuteMsgs(restakeTargets);
-    if (executeMsgs.length === 0) {
-      return {
-        restakeSuccessTxs: [],
-        restakeFailedTxs: []
-      };
-    }
-    let executeResult = await restakeSDK.executeRestake(executeMsgs);
+    const restakeMessages = await restakeSDK.getRestakeMessages(restakeTargets);
+    const restakeExecuteResults = await restakeSDK.executeAllowanceMessages(restakeMessages);
 
-    return {
-      restakeSuccessTxs: executeResult.restakeSuccessTxs,
-      restakeFailedTxs: executeResult.restakeFailedTxs
+    // retry flow
+    let successTransactionStates = restakeExecuteResults.successTransactionStates;
+    let retryRestakeTargets = restakeExecuteResults.retryRestakeTargets;
+
+    if (retryRestakeTargets.length > 0) {
+      const retryRestakeExecuteResults = await restakeSDK.retryExecuteAllowanceMessages(retryRestakeTargets);
+      successTransactionStates.push(...retryRestakeExecuteResults);
     }
+
+    return successTransactionStates;
   }
 
-  async unprocesssRound(round: number) {
+  async writeDBProcess(restakeExecuteResults: ITransactionState[]) {
+    const restakeMongoDB = RestakeMongoDB();
+    const nowRound = await this.historiesService.count() + 1;
+    const nowScheduleDate = ScheduleDate().before();
+
+    if (restakeExecuteResults.length === 0) {
+      this.unprocesssRound(nowRound, nowScheduleDate);
+      return ;
+    }
+
+    const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults);
+    const historyDto = parseRestakeData.historyDto;
+    const roundDto = parseRestakeData.roundDto;
+
+    await this.historiesService.create(historyDto);
+    await this.roundsService.create(roundDto);
+
+    let restakeAmount = 0;
+    let feesAmount = 0;
+    let restakeCount = 0;
+
+    for (let i = 0; i < roundDto.roundDetails.length; i++) {
+      const roundDetail = roundDto.roundDetails[i];
+      restakeAmount += roundDetail.restakeAmount;
+      feesAmount += roundDetail.feesAmount;
+      restakeCount += roundDetail.restakeCount;
+    }
+
+    let statusDto: StatusesDto = {
+      nowRound: nowRound,
+      nextRoundDateTime: ScheduleDate().next(),
+      feesAmount: feesAmount,
+      restakeAmount: restakeAmount,
+      restakeCount: restakeCount
+    }
+
+    await this.statusesService.update(statusDto);
+  }
+
+  async unprocesssRound(round: number, nowScheduleDate: string) {
     // Create history data
     await this.historiesService.create({
       round: round,
-      isHasData: false,
-      txInfos: []
+      scheduleDate: nowScheduleDate,
+      historyDetails: []
     });
     // Create round data
     await this.roundsService.create({
       round: round,
-      isHasData: false,
-      details: [],
-      dateTime: ScheduleDate().before()
+      scheduleDate: nowScheduleDate,
+      roundDetails: []
     });
     // Create & Update status data
     const statusCount = await this.statusesService.count();
@@ -77,34 +118,6 @@ export class SchedulerServiceService {
       statusData.nowRound = round;
       statusData.nextRoundDateTime = ScheduleDate().next();
       this.statusesService.update(statusData);
-    }
-  }
-
-  async writeDBProcess(restakeResult: IRestakeResult) {
-    const restakeMongoDB = RestakeMongoDB();
-    const nowRound = await this.historiesService.count() + 1;
-
-    let successTxs = restakeResult.restakeSuccessTxs;
-    let failedTxs = restakeResult.restakeFailedTxs;
-    
-    if (successTxs.length === 0 && failedTxs.length === 0) {
-      // There's no target for Restake
-      await this.unprocesssRound(nowRound);
-      return ;
-    } else if (successTxs.length > 0) {
-      const historyData = restakeMongoDB.makeHistoryData(successTxs, nowRound);
-      const historyResult = await this.historiesService.create(historyData);
-      const roundData = restakeMongoDB.makeRoundData(historyResult, ScheduleDate().before());
-      const roundResult = await this.roundsService.create(roundData);
-
-      const nowStatusData = await this.statusesService.findOne();
-      const statusData = restakeMongoDB.makeStatusData(nowStatusData, roundResult, ScheduleDate().next());
-
-      if (nowStatusData === null) {
-        const statusResult = await this.statusesService.create(statusData);
-      } else {
-        const statusResult = await this.statusesService.update(statusData);
-      }
     }
   }
 }

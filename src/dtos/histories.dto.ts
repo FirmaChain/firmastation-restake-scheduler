@@ -1,14 +1,14 @@
 export class CreateHistoriesDto {
   readonly round: number;
-  readonly isHasData: boolean;
-  readonly txInfos: TxInfoDto[];
+  readonly scheduleDate: string;
+  readonly historyDetails: HistoryDetail[];
 }
 
-export class TxInfoDto {
+export class HistoryDetail {
+  txHash: string;
   gasUsed: number;
   gasWanted: number;
   height: number;
-  txHash: string;
-  rawlog: string;
   dateTime: string;
+  rawLog: string;
 }

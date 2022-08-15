@@ -26,7 +26,7 @@ export class RestakeService {
 
     if (latestData !== null) {
       round = latestData.round;
-      const roundDetails = latestData.details;
+      const roundDetails = latestData.roundDetails;
 
       for (let i = 0; i < roundDetails.length; i++) {
         const roundDetail = roundDetails[i];
@@ -77,8 +77,8 @@ export class RestakeService {
         let roundRestakeAmount: number = 0;
         let roundRestakeCount: number = 0;
 
-        for (let j = 0; j < round.details.length; j++) {
-          const roundDetail = round.details[j];
+        for (let j = 0; j < round.roundDetails.length; j++) {
+          const roundDetail = round.roundDetails[j];
   
           roundFeesAmount += roundDetail.feesAmount;
           roundRestakeAmount += roundDetail.restakeAmount;
@@ -90,8 +90,8 @@ export class RestakeService {
           feesAmount: roundFeesAmount,
           restakeAmount: roundRestakeAmount,
           restakeCount: roundRestakeCount,
-          startDateTime: round.dateTime,
-          roundDetails: round.details
+          startDateTime: round.scheduleDate,
+          roundDetails: round.roundDetails
         }
   
         roundDatas.push(data);

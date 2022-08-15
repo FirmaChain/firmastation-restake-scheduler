@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { TxInfoDto } from "../dtos/histories.dto";
+import { HistoryDetail } from "../dtos/histories.dto";
 
 export type HistoriesDocument = Histories & Document;
 
@@ -9,10 +9,10 @@ export class Histories {
   round: number;
   
   @Prop()
-  isHasData: boolean;
+  dateTime: string;
 
   @Prop()
-  txInfos: TxInfoDto[];
+  historyDetails: HistoryDetail[];
 }
 
 export const HistoriesSchema = SchemaFactory.createForClass(Histories);

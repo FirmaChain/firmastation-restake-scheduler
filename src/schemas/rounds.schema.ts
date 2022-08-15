@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-
-import { IRoundDetail } from "../interfaces/dbTypes";
+import { RoundDetail } from "src/dtos/rounds.dto";
 
 export type RoundsDocument = Rounds & Document;
 
@@ -8,15 +7,12 @@ export type RoundsDocument = Rounds & Document;
 export class Rounds {
   @Prop({ required: true })
   round: number;
-  
-  @Prop()
-  isHasData: boolean;
 
   @Prop({ required: true })
-  dateTime: string;
+  scheduleDate: string;
 
   @Prop({ required: true })
-  details: IRoundDetail[]
+  roundDetails: RoundDetail[]
 }
 
 export const RoundsSchema = SchemaFactory.createForClass(Rounds);

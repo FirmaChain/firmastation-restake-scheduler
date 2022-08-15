@@ -1,119 +1,128 @@
-import { BroadcastTxResponse } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient"
-
-import { CreateRoundsDto } from "../dtos/rounds.dto";
-import { StatusesDto } from "../dtos/statuses.dto";
-import { IRoundDetail } from "../interfaces/dbTypes";
-import { Histories } from "../schemas/histories.schema";
-import { Rounds } from "../schemas/rounds.schema";
-import { Statuses } from "../schemas/statuses.schema";
-import { CreateHistoriesDto, TxInfoDto } from "../dtos/histories.dto"
+import { CreateHistoriesDto, HistoryDetail } from "src/dtos/histories.dto";
+import { CreateRoundsDto, RoundDetail } from "src/dtos/rounds.dto";
+import { ITransactionState } from "src/interfaces/types"
+import { RestakeSDKHelper } from "./restakeSDKHelper";
+import { ScheduleDate } from "./scheduleDate";
 
 const RestakeMongoDB = () => {
-  const makeHistoryData = (txResults: BroadcastTxResponse[], roundCount: number): CreateHistoriesDto => {
-    let txInfoDtos: TxInfoDto[] = [];
-    let isHasData: boolean = txResults.length > 0 ? true : false;
+  const parsingRestakeTransactions = (nowRound: number, restakeExecuteResults: ITransactionState[]) => {
+    let scheduleDate = ScheduleDate().before();
 
-    for (let i = 0; i < txResults.length; i++) {
-      const txResult: BroadcastTxResponse = txResults[i];
-      const txInfo: TxInfoDto = {
-        gasUsed: txResult['gasUsed'],
-        gasWanted: txResult['gasWanted'],
-        height: txResult.height,
-        txHash: txResult.transactionHash,
-        rawlog: txResult.rawLog,
-        dateTime: new Date().toISOString()
+    let historyDetails: HistoryDetail[] = [];
+    let roundDetails: RoundDetail[] = [];
+
+    for (let i = 0; i < restakeExecuteResults.length; i++) {
+      let restakeExecuteResult = restakeExecuteResults[i];
+      let transactionResult = restakeExecuteResult.transactionResult;
+      
+      let txHash = '';
+      let gasUsed = 0;
+      let gasWanted = 0;
+      let height = 0;
+      let rawLog = '';
+      let fees = 0;
+
+      if (transactionResult !== null) {
+        txHash = transactionResult.transactionHash;
+        gasUsed = transactionResult['gasUsed'];
+        gasWanted = transactionResult['gasWanted'];
+        height = transactionResult.height;
+        rawLog = transactionResult.rawLog;
+        fees = gasWanted * 0.1;
       }
 
-      txInfoDtos.push(txInfo);
-    }
+      let dateTime = restakeExecuteResult.dateTime;
+      let parseRawLog = RestakeSDKHelper().parseRawLog(rawLog);
+      let restakeAmount = parseRawLog.restakeAmount;
+      let restakeCount = parseRawLog.restakeCount;
 
-    return {
-      round: roundCount,
-      isHasData: isHasData,
-      txInfos: txInfoDtos
-    };
-  }
-
-  const makeRoundData = (histories: Histories, scheduleStartDate: string): CreateRoundsDto => {
-    let txInfos = histories.txInfos;
-    let roundDetails: IRoundDetail[] = [];
-
-    for (let i = 0; i < txInfos.length; i++) {
-      const txInfo = txInfos[i];
-      const events = JSON.parse(txInfo.rawlog)[0]['events'];
-      const txHash: string = txInfo.txHash;
-      const fees: number = txInfo.gasWanted * 0.1;
-      const dateTime: string = txInfo.dateTime;
-      let restakeAmount: number = 0;
-      let restakeCount: number = 0;
-
-      for (let j = 0; j < events.length; j++) {
-        const event = events[j];
-        const attributes = event['attributes'];
-
-        if (event['type'] !== 'delegate') continue;
-
-        for (let k = 0; k < attributes.length; k++) {
-          const attribute = attributes[k];
-
-          if (attribute['key'] !== 'amount') continue;
-
-          const amount = Number(attribute['value'].replace('ufct', ''));
-
-          restakeAmount += amount;
-          restakeCount++;
-        }
-      }
+      historyDetails.push({
+        txHash: txHash,
+        gasUsed: gasUsed,
+        gasWanted: gasWanted,
+        height: height,
+        rawLog: rawLog,
+        dateTime: dateTime
+      });
 
       roundDetails.push({
         txHash: txHash,
-        feesAmount: fees,
+        dateTime: restakeExecuteResult.dateTime,
         restakeAmount: restakeAmount,
+        feesAmount: fees,
         restakeCount: restakeCount,
-        dateTime: dateTime
+        reason: restakeExecuteResult.errorType,
+        originRestakeTargets: restakeExecuteResult.originRestakeTargets,
+        finalRestakeTargets: restakeExecuteResult.finalRestakeTargets,
+        retryCount: restakeExecuteResult.retryCount
       });
     }
 
+    const historyDto: CreateHistoriesDto = {
+      round: nowRound,
+      scheduleDate: scheduleDate,
+      historyDetails: historyDetails
+    }
+
+    const roundDto: CreateRoundsDto = {
+      round: nowRound,
+      scheduleDate: scheduleDate,
+      roundDetails: roundDetails
+    }
+
     return {
-      round: histories.round,
-      isHasData: histories.isHasData,
-      dateTime: scheduleStartDate,
-      details: roundDetails
-    };
+      historyDto,
+      roundDto
+    }
   }
 
-  const makeStatusData = (nowStatusData: Statuses, rounds: Rounds, nextScheduleDate: string): StatusesDto => {
-    let feesAmount: number = 0;
-    let restakeAmount: number = 0;
-    let restakeCount: number = 0;
+  const getCreateHistoryDataToSave = (nowRound: number, restakeExecuteResults: ITransactionState[]) => {
+    let historyDetails: HistoryDetail[] = [];
 
-    if (nowStatusData !== null && nowStatusData !== undefined) {
-      feesAmount = nowStatusData.feesAmount;
-      restakeAmount = nowStatusData.restakeAmount;
-      restakeCount = nowStatusData.restakeCount;
+    for (let i = 0; i < restakeExecuteResults.length; i++) {
+      let restakeExecuteResult = restakeExecuteResults[i];
+
+      let dateTime = restakeExecuteResult.dateTime;
+      let txResult = restakeExecuteResult.transactionResult;
+
+      let historyDetail: HistoryDetail = new HistoryDetail();
+
+      if (txResult !== null) {
+        historyDetail = {
+          txHash: txResult.transactionHash,
+          dateTime: dateTime,
+          gasUsed: txResult['gasUsed'],
+          gasWanted: txResult['gasWanted'],
+          height: txResult.height,
+          rawLog: txResult.rawLog
+        }
+      }
+
+      historyDetails.push(historyDetail);
     }
 
-    for (let i = 0; i < rounds.details.length; i++) {
-      const detail = rounds.details[i];
+    const historyDto: CreateHistoriesDto = {
+      round: nowRound,
+      scheduleDate: ScheduleDate().before(),
+      historyDetails: historyDetails
+    }
 
-      feesAmount += detail.feesAmount;
-      restakeAmount += detail.restakeAmount;
-      restakeCount += detail.restakeCount;
-    }
-    
-    return {
-      nowRound: rounds.round,
-      feesAmount: feesAmount,
-      restakeAmount: restakeAmount,
-      restakeCount: restakeCount,
-      nextRoundDateTime: nextScheduleDate
-    }
+    return historyDto;
+  }
+
+  const getCreateRoundDataToSave = () => {
+
+  }
+
+  const getCreateStatusDataToSave = () => {
+
   }
 
   return {
-    makeHistoryData,
-    makeRoundData,
-    makeStatusData
+    getCreateHistoryDataToSave,
+    getCreateRoundDataToSave,
+    getCreateStatusDataToSave,
+    parsingRestakeTransactions
   }
 }
 

@@ -1,11 +1,11 @@
-import { IExecuteMsg } from "../interfaces/types";
+import { IExecuteMessage } from "../interfaces/types";
 
-export function spliceAsBatchTxsCount(msgs: IExecuteMsg[], sliceCount: number): IExecuteMsg[][] {
+export function spliceAsBatchTxsCount(msgs: any[], sliceCount: number): IExecuteMessage[][] {
   const totalMsgCount = msgs.length;
   const totalTxCount = totalMsgCount / sliceCount;
   const theRestCount = totalMsgCount % sliceCount ? 0 : totalMsgCount;
 
-  let messages: IExecuteMsg[][] = [];
+  let messages: IExecuteMessage[][] = [];
 
   if (totalTxCount === 0) {
     messages[0] = msgs;
