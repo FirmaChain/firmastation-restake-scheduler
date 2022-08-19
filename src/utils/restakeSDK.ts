@@ -323,7 +323,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     }
     
     const restakeWalletAmount = await _getRestakeWalletBalance();
-    if (restakeWalletAmount < gasEstimationInfo.gasEstimation) {
+    if (restakeWalletAmount < (gasEstimationInfo.gasEstimation * 0.1)) {
       return {
         errorType: ERROR_INSUFFICIENT,
         dateTime: nowDate.toISOString(),
