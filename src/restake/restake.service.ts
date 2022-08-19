@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { IRestakeInfo, IRestakeRoundData } from '../interfaces/types';
+import { IRestakeInfo, IRestakeRoundData, IRoundDetail } from '../interfaces/types';
 import { RoundsService } from '../rounds/rounds.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_FREQUENCY } from '../config';
@@ -66,9 +66,13 @@ export class RestakeService {
       restakeCount = statusData.restakeCount;
     }
 
-    // Round Data
-    const rounds = await this.roundsService.findLatestAt(count);
+    let totalCount = count;
+    if (totalCount === 0) {
+      totalCount = await this.roundsService.count();
+    }
 
+    // Round Data
+    const rounds = await this.roundsService.findLatestAt(totalCount);
     if (rounds.length !== 0) {
       for (let i = 0; i < rounds.length; i++) {
         const round = rounds[i];
@@ -76,13 +80,17 @@ export class RestakeService {
         let roundFeesAmount: number = 0;
         let roundRestakeAmount: number = 0;
         let roundRestakeCount: number = 0;
-
+        let roundDetails: IRoundDetail[] = [];
+        
         for (let j = 0; j < round.roundDetails.length; j++) {
           const roundDetail = round.roundDetails[j];
-  
-          roundFeesAmount += roundDetail.feesAmount;
-          roundRestakeAmount += roundDetail.restakeAmount;
-          roundRestakeCount += roundDetail.restakeCount;
+          if (roundDetail.reason === 0) {
+            roundFeesAmount += roundDetail.feesAmount;
+            roundRestakeAmount += roundDetail.restakeAmount;
+            roundRestakeCount += roundDetail.restakeCount;
+
+            roundDetails.push(roundDetail);
+          }
         }
   
         const data: IRestakeRoundData = {
@@ -91,7 +99,7 @@ export class RestakeService {
           restakeAmount: roundRestakeAmount,
           restakeCount: roundRestakeCount,
           startDateTime: round.scheduleDate,
-          roundDetails: round.roundDetails
+          roundDetails: roundDetails
         }
   
         roundDatas.push(data);

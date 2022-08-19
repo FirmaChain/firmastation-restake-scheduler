@@ -17,19 +17,22 @@ export class SchedulerServiceService {
     private readonly roundsService: RoundsService,
     private readonly statusesService: StatusesService
   ) {
-    this.handleCron();
+    
   }
 
-  // @Cron(CronExpression.EVERY_4_HOURS, {
-  //   name: 'restake_handling',
-  //   timeZone: 'Etc/UTC'
-  // })
+  @Cron(CronExpression.EVERY_4_HOURS, {
+    name: 'restake_handling',
+    timeZone: 'Etc/UTC'
+  })
   async handleCron() {
     const restakeExecuteResults = await this.restakeProcess();
-    await this.writeDBProcess(restakeExecuteResults);
+    await this.writeDBProcess(restakeExecuteResults.successTransactionStates, restakeExecuteResults.scheduleDate);
   }
 
   async restakeProcess() {
+    // Schedule Date
+    const scheduleDate = new Date().toISOString();
+
     // restake flow
     const restakeSDK = await RestakeSDK(false);
     const restakeTargets = await restakeSDK.getRestakeTargets();
@@ -45,20 +48,23 @@ export class SchedulerServiceService {
       successTransactionStates.push(...retryRestakeExecuteResults);
     }
 
-    return successTransactionStates;
+    return {
+      successTransactionStates,
+      scheduleDate
+    }
   }
 
-  async writeDBProcess(restakeExecuteResults: ITransactionState[]) {
+  async writeDBProcess(restakeExecuteResults: ITransactionState[], scheduleDate: string) {
     const restakeMongoDB = RestakeMongoDB();
     const nowRound = await this.historiesService.count() + 1;
-    const nowScheduleDate = ScheduleDate().before();
+    const nowScheduleDate = scheduleDate;
 
     if (restakeExecuteResults.length === 0) {
       this.unprocesssRound(nowRound, nowScheduleDate);
       return ;
     }
 
-    const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults);
+    const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults, scheduleDate);
     const historyDto = parseRestakeData.historyDto;
     const roundDto = parseRestakeData.roundDto;
 
@@ -76,12 +82,14 @@ export class SchedulerServiceService {
       restakeCount += roundDetail.restakeCount;
     }
 
+    const statusData = await this.statusesService.findOne();
+    
     let statusDto: StatusesDto = {
       nowRound: nowRound,
       nextRoundDateTime: ScheduleDate().next(),
-      feesAmount: feesAmount,
-      restakeAmount: restakeAmount,
-      restakeCount: restakeCount
+      feesAmount: statusData.feesAmount + feesAmount,
+      restakeAmount: statusData.restakeAmount + restakeAmount,
+      restakeCount: statusData.restakeCount + restakeCount
     }
 
     await this.statusesService.update(statusDto);

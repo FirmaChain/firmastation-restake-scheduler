@@ -2,12 +2,9 @@ import { CreateHistoriesDto, HistoryDetail } from "src/dtos/histories.dto";
 import { CreateRoundsDto, RoundDetail } from "src/dtos/rounds.dto";
 import { ITransactionState } from "src/interfaces/types"
 import { RestakeSDKHelper } from "./restakeSDKHelper";
-import { ScheduleDate } from "./scheduleDate";
 
 const RestakeMongoDB = () => {
-  const parsingRestakeTransactions = (nowRound: number, restakeExecuteResults: ITransactionState[]) => {
-    let scheduleDate = ScheduleDate().before();
-
+  const parsingRestakeTransactions = (nowRound: number, restakeExecuteResults: ITransactionState[], scheduleDate: string) => {
     let historyDetails: HistoryDetail[] = [];
     let roundDetails: RoundDetail[] = [];
 
@@ -76,52 +73,7 @@ const RestakeMongoDB = () => {
     }
   }
 
-  const getCreateHistoryDataToSave = (nowRound: number, restakeExecuteResults: ITransactionState[]) => {
-    let historyDetails: HistoryDetail[] = [];
-
-    for (let i = 0; i < restakeExecuteResults.length; i++) {
-      let restakeExecuteResult = restakeExecuteResults[i];
-
-      let dateTime = restakeExecuteResult.dateTime;
-      let txResult = restakeExecuteResult.transactionResult;
-
-      let historyDetail: HistoryDetail = new HistoryDetail();
-
-      if (txResult !== null) {
-        historyDetail = {
-          txHash: txResult.transactionHash,
-          dateTime: dateTime,
-          gasUsed: txResult['gasUsed'],
-          gasWanted: txResult['gasWanted'],
-          height: txResult.height,
-          rawLog: txResult.rawLog
-        }
-      }
-
-      historyDetails.push(historyDetail);
-    }
-
-    const historyDto: CreateHistoriesDto = {
-      round: nowRound,
-      scheduleDate: ScheduleDate().before(),
-      historyDetails: historyDetails
-    }
-
-    return historyDto;
-  }
-
-  const getCreateRoundDataToSave = () => {
-
-  }
-
-  const getCreateStatusDataToSave = () => {
-
-  }
-
   return {
-    getCreateHistoryDataToSave,
-    getCreateRoundDataToSave,
-    getCreateStatusDataToSave,
     parsingRestakeTransactions
   }
 }

@@ -93,11 +93,9 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     }
   }
 
-
   const retryExecuteAllowanceMessages = async (retryRestakeTargets: IRestakeTarget[][]) => {
     let endTransactionStates: ITransactionState[] = [];
 
-    console.log('start retry');
     for (let i = 0; i < retryRestakeTargets.length; i++) {
       let retryRestakeTarget = retryRestakeTargets[i];
 
@@ -315,7 +313,6 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
 
   const _executeTransaction = async (messages: Any[]): Promise<ITransactionState> => {
     const nowDate = new Date();
-    
     const gasEstimationInfo = await _calcGasEstimation(messages);
     if (gasEstimationInfo.isValid === false) {
       return {
