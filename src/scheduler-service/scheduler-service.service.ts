@@ -82,20 +82,19 @@ export class SchedulerServiceService {
       restakeCount += roundDetail.restakeCount;
     }
 
-    let statusData = await this.statusesService.findOne();
-    
-    if (statusData === null) {
-      statusData.feesAmount = 0;
-      statusData.restakeAmount = 0;
-      statusData.restakeCount = 0;
+    const statusData = await this.statusesService.findOne();
+    if (statusData !== null) {
+      feesAmount += statusData.feesAmount;
+      restakeAmount += statusData.restakeAmount;
+      restakeCount += statusData.restakeCount;
     }
 
     let statusDto: StatusesDto = {
       nowRound: nowRound,
       nextRoundDateTime: ScheduleDate().next(),
-      feesAmount: statusData.feesAmount + feesAmount,
-      restakeAmount: statusData.restakeAmount + restakeAmount,
-      restakeCount: statusData.restakeCount + restakeCount
+      feesAmount: feesAmount,
+      restakeAmount: restakeAmount,
+      restakeCount: restakeCount
     }
 
     await this.statusesService.update(statusDto);
