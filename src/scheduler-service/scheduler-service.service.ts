@@ -83,21 +83,29 @@ export class SchedulerServiceService {
     }
 
     const statusData = await this.statusesService.findOne();
-    if (statusData !== null) {
+    const nextScheduleDate = ScheduleDate().next();
+
+    if (statusData === null) {
+      await this.statusesService.create({
+        nowRound: nowRound,
+        nextRoundDateTime: nextScheduleDate,
+        feesAmount: feesAmount,
+        restakeAmount: restakeAmount,
+        restakeCount: restakeCount
+      });
+    } else {
       feesAmount += statusData.feesAmount;
       restakeAmount += statusData.restakeAmount;
       restakeCount += statusData.restakeCount;
-    }
 
-    let statusDto: StatusesDto = {
-      nowRound: nowRound,
-      nextRoundDateTime: ScheduleDate().next(),
-      feesAmount: feesAmount,
-      restakeAmount: restakeAmount,
-      restakeCount: restakeCount
+      await this.statusesService.update({
+        nowRound: nowRound,
+        nextRoundDateTime: nextScheduleDate,
+        feesAmount: feesAmount,
+        restakeAmount: restakeAmount,
+        restakeCount: restakeCount
+      });
     }
-
-    await this.statusesService.update(statusDto);
   }
 
   async unprocesssRound(round: number, nowScheduleDate: string) {
