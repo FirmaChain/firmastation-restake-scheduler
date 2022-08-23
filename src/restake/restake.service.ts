@@ -89,7 +89,13 @@ export class RestakeService {
             roundRestakeAmount += roundDetail.restakeAmount;
             roundRestakeCount += roundDetail.restakeCount;
 
-            roundDetails.push(roundDetail);
+            roundDetails.push({
+              feesAmount: roundDetail.feesAmount,
+              restakeAmount: roundDetail.restakeAmount,
+              restakeCount: roundDetail.restakeCount,
+              dateTime: roundDetail.dateTime,
+              txHash: roundDetail.txHash
+            });
           }
         }
   
