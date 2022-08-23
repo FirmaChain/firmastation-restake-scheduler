@@ -28,6 +28,12 @@ export class StatusesService {
   }
 
   async count(): Promise<number> {
-    return await this.statusModel.count();
+    let statusCount = await this.statusModel.count();
+
+    if (statusCount === null || statusCount === undefined) {
+      return 0;
+    }
+
+    return statusCount;
   }
 }
