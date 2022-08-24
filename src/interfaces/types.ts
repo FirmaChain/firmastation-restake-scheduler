@@ -26,6 +26,7 @@ export interface IRestakeRoundData {
   feesAmount: number,
   restakeCount: number,
   startDateTime: string,
+  retakeTotalTime: number,
   roundDetails: IRoundDetail[]
 }
 

@@ -53,6 +53,7 @@ export class RestakeService {
     let feesAmount = 0;
     let restakeAmount = 0;
     let restakeCount = 0;
+    let restakeAvgTime = 0;
     let roundDatas = [];
     let nextRoundDateTime = ScheduleDate().next();
   
@@ -74,12 +75,15 @@ export class RestakeService {
     // Round Data
     const rounds = await this.roundsService.findLatestAt(totalCount);
     if (rounds.length !== 0) {
+      let restakeTotalTime = 0;
+
       for (let i = 0; i < rounds.length; i++) {
         const round = rounds[i];
 
         let roundFeesAmount: number = 0;
         let roundRestakeAmount: number = 0;
         let roundRestakeCount: number = 0;
+        let roundRestakeTotalTime: number = 0;
         let roundDetails: IRoundDetail[] = [];
         
         for (let j = 0; j < round.roundDetails.length; j++) {
@@ -98,6 +102,18 @@ export class RestakeService {
             });
           }
         }
+
+        const roundDetailCount = round.roundDetails.length;
+        if (roundDetailCount > 0) {
+          const roundLength = roundDetailCount - 1;
+          const startDateTime = (new Date(round.scheduleDate)).getTime();
+          const endDateTime = (new Date(round.roundDetails[roundLength].dateTime)).getTime();
+          roundRestakeTotalTime = (endDateTime - startDateTime) / 1000;
+
+          if (i < 10) {
+            restakeTotalTime += roundRestakeTotalTime;
+          }
+        }
   
         const data: IRestakeRoundData = {
           round: round.round,
@@ -105,11 +121,14 @@ export class RestakeService {
           restakeAmount: roundRestakeAmount,
           restakeCount: roundRestakeCount,
           startDateTime: round.scheduleDate,
+          retakeTotalTime: roundRestakeTotalTime,
           roundDetails: roundDetails
         }
   
         roundDatas.push(data);
       }
+
+      restakeAvgTime = restakeTotalTime / rounds.length;
     }
 
     return {
@@ -117,8 +136,9 @@ export class RestakeService {
       feesAmount: feesAmount,
       restakeAmount: restakeAmount,
       restakeCount: restakeCount,
+      restakeAvgTime: restakeAvgTime,
       nextRoundDateTime: nextRoundDateTime,
-      roundDatas: roundDatas
+      roundDatas: roundDatas,
     };
   }
 }
