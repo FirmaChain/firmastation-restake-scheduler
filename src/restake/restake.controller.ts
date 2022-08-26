@@ -8,6 +8,11 @@ export class RestakeController {
   constructor(private readonly restakeService: RestakeService) {
   }
 
+  @Get('health')
+  getHealth() {
+    return this.restakeService.getHealth();
+  }
+  
   @Get('info')
   async getRestakeInfo(): Promise<IRestakeInfo> {
     return await this.restakeService.getRestakeInfoForStationApp();

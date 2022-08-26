@@ -8,3 +8,7 @@ export const RESTAKE_FREQUENCY = '';
 export const BATCH_TX_COUNT = 0;
 export const RETRY_COUNT = 0;
 export const FIRMACHAIN_CONFIG = FirmaConfig.TestNetConfig;
+export const TELEGRAM_BOT_TOKEN = '';
+export const TELEGRAM_BOT_CHATID = '';
+export const TELEGRAM_ERROR_BOT_TOKEN = '';
+export const TELEGRAM_ERROR_BOT_CHATID = '';

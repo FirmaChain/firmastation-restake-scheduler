@@ -1,6 +1,7 @@
 import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
 
 import { BroadcastTxResponse } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient";
+import { CreateRoundsDto } from "src/dtos/rounds.dto";
 
 export interface IRestakeInfo {
   frequency: string,
@@ -51,4 +52,9 @@ export interface ITransactionState {
   retryCount?: number,
   originRestakeTargets?: IRestakeTarget[],
   finalRestakeTargets?: IRestakeTarget[]
+}
+
+export interface IWriteDBResult {
+  nowRound: number,
+  roundsDto: CreateRoundsDto
 }

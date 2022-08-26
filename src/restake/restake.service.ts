@@ -13,6 +13,10 @@ export class RestakeService {
     private readonly statusesService: StatusesService
   ) {}
   
+  async getHealth() {
+    return 'health';
+  }
+  
   async getRestakeInfoForStationApp(): Promise<IRestakeInfo> {
     let frequency = RESTAKE_FREQUENCY;
     let minimumRewards = MINIMUM_UFCT_REWARD_AMOUNT;

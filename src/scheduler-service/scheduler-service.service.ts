@@ -7,8 +7,10 @@ import { RoundsService } from '../rounds/rounds.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { RestakeMongoDB } from '../utils/mongoDB';
 import { RestakeSDK } from 'src/utils/restakeSDK';
-import { ITransactionState } from 'src/interfaces/types';
-import { StatusesDto } from 'src/dtos/statuses.dto';
+import { ITransactionState, IWriteDBResult } from 'src/interfaces/types';
+import { sendRestakeFailedResultMessage, sendRestakeResultMessage } from 'src/components/telegram';
+import { ERROR_CALC_GAS, ERROR_EXECUTE_MESSAGE, ERROR_INSUFFICIENT, ERROR_NONE } from 'src/constants/errorType';
+import { RETRY_COUNT } from 'src/config';
 
 @Injectable()
 export class SchedulerServiceService {
@@ -26,10 +28,11 @@ export class SchedulerServiceService {
   })
   async handleCron() {
     const restakeExecuteResults = await this.restakeProcess();
-    await this.writeDBProcess(restakeExecuteResults.successTransactionStates, restakeExecuteResults.scheduleDate);
+    const writeDBResult = await this.writeDBProcess(restakeExecuteResults.successTransactionStates, restakeExecuteResults.scheduleDate);
+    const sendTelegramResult = await this.sendTelegram(writeDBResult);
   }
 
-  async restakeProcess() {
+  private async restakeProcess() {
     // Schedule Date
     const scheduleDate = new Date().toISOString();
 
@@ -54,14 +57,14 @@ export class SchedulerServiceService {
     }
   }
 
-  async writeDBProcess(restakeExecuteResults: ITransactionState[], scheduleDate: string) {
+  private async writeDBProcess(restakeExecuteResults: ITransactionState[], scheduleDate: string) {
     const restakeMongoDB = RestakeMongoDB();
     const nowRound = await this.historiesService.count() + 1;
     const nowScheduleDate = scheduleDate;
 
     if (restakeExecuteResults.length === 0) {
       this.unprocesssRound(nowRound, nowScheduleDate);
-      return ;
+      return;
     }
 
     const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults, scheduleDate);
@@ -106,9 +109,14 @@ export class SchedulerServiceService {
         restakeCount: restakeCount
       });
     }
+
+    return {
+      nowRound,
+      roundsDto: roundDto
+    }
   }
 
-  async unprocesssRound(round: number, nowScheduleDate: string) {
+  private async unprocesssRound(round: number, nowScheduleDate: string) {
     // Create history data
     await this.historiesService.create({
       round: round,
@@ -123,7 +131,7 @@ export class SchedulerServiceService {
     });
     // Create & Update status data
     const statusCount = await this.statusesService.count();
-    
+
     if (statusCount === 0) {
       // Create
       await this.statusesService.create({
@@ -139,6 +147,55 @@ export class SchedulerServiceService {
       statusData.nowRound = round;
       statusData.nextRoundDateTime = ScheduleDate().next();
       this.statusesService.update(statusData);
+    }
+  }
+
+  private async sendTelegram(writeDBResult: IWriteDBResult) {
+    let successCount = 0;
+    let failedCount = 0;
+    let resultMsg = `[ ● RESTAKE ● ]\nROUND: ${writeDBResult.nowRound}\n`;
+    let failedMsg = '[ ● ERRORS ● ]\n';
+
+    const roundDetails = writeDBResult.roundsDto.roundDetails;
+    if (roundDetails.length > 0) {
+      for (let i = 0; i < roundDetails.length; i++) {
+        const roundDetail = roundDetails[i];
+
+        if (roundDetail.reason === ERROR_NONE) {
+          successCount++;
+        } else {
+          failedCount++;
+
+          failedMsg += `[ ■ STEP ${i + 1} ■ ]\n`;
+
+          switch (roundDetail.reason) {
+            case ERROR_CALC_GAS:
+              failedMsg += 'SUCCESS: calc gas\n';
+              break;
+            case ERROR_INSUFFICIENT:
+              failedMsg += 'SUCCESS: insufficient\n';
+              break;
+            case ERROR_EXECUTE_MESSAGE:
+              failedMsg += 'SUCCESS: execute\n';
+              break;
+          }
+
+          failedMsg += `RETRY: ${roundDetail.retryCount} / ${RETRY_COUNT}\n`;
+        }
+      }
+      failedMsg += '\n'
+      resultMsg += `SUCCESS: ${successCount}\n`;
+      resultMsg += `FAILED: ${failedCount}\n`;
+    } else {
+      resultMsg += 'not found targets';
+    }
+
+    // send result message
+    await sendRestakeResultMessage(resultMsg);
+
+    // send failed message
+    if (failedCount > 0) {
+      await sendRestakeFailedResultMessage(failedMsg);
     }
   }
 }
