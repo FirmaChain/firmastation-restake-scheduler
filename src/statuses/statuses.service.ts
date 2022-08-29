@@ -20,7 +20,7 @@ export class StatusesService {
       return null;
     }
     
-    return this.statusModel.findOne().exec();
+    return await this.statusModel.findOne().exec();
   }
 
   async update(updateStatusesDto: StatusesDto) {

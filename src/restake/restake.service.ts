@@ -64,7 +64,7 @@ export class RestakeService {
     // Status Data
     const statusData = await this.statusesService.findOne();
     
-    if (statusData !== null) {
+    if (statusData !== null && statusData !== undefined) {
       round = statusData.nowRound;
       feesAmount = statusData.feesAmount;
       restakeAmount = statusData.restakeAmount;

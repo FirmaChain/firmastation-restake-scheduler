@@ -63,8 +63,7 @@ export class SchedulerServiceService {
     const nowScheduleDate = scheduleDate;
 
     if (restakeExecuteResults.length === 0) {
-      this.unprocesssRound(nowRound, nowScheduleDate);
-      return;
+      await this.unprocesssRound(nowRound, nowScheduleDate);
     }
 
     const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults, scheduleDate);
@@ -111,7 +110,7 @@ export class SchedulerServiceService {
     }
 
     return {
-      nowRound,
+      nowRound: nowRound,
       roundsDto: roundDto
     }
   }
