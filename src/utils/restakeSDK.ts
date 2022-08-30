@@ -83,6 +83,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         successTransactionStates.push(executeTxResult);
       } else {
         console.log(`restake failed reason: ${executeTxResult.errorType}`);
+        console.log(restakeExecuteMessages);
         retryRestakeTargets.push(restakeExecuteTargets);
       }
     }

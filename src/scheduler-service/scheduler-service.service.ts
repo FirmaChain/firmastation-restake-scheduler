@@ -27,15 +27,15 @@ export class SchedulerServiceService {
     timeZone: 'Etc/UTC'
   })
   async handleCron() {
+    // Schedule Date
+    const scheduleDate = new Date().toISOString();
+    // restake
     const restakeExecuteResults = await this.restakeProcess();
-    const writeDBResult = await this.writeDBProcess(restakeExecuteResults.successTransactionStates, restakeExecuteResults.scheduleDate);
+    const writeDBResult = await this.writeDBProcess(restakeExecuteResults, scheduleDate);
     const sendTelegramResult = await this.sendTelegram(writeDBResult);
   }
 
   private async restakeProcess() {
-    // Schedule Date
-    const scheduleDate = new Date().toISOString();
-
     // restake flow
     const restakeSDK = await RestakeSDK(false);
     const restakeTargets = await restakeSDK.getRestakeTargets();
@@ -51,10 +51,7 @@ export class SchedulerServiceService {
       successTransactionStates.push(...retryRestakeExecuteResults);
     }
 
-    return {
-      successTransactionStates,
-      scheduleDate
-    }
+    return successTransactionStates;
   }
 
   private async writeDBProcess(restakeExecuteResults: ITransactionState[], scheduleDate: string) {
@@ -63,7 +60,16 @@ export class SchedulerServiceService {
     const nowScheduleDate = scheduleDate;
 
     if (restakeExecuteResults.length === 0) {
-      await this.unprocesssRound(nowRound, nowScheduleDate);
+      await this.unprocessRound(nowRound, nowScheduleDate);
+      
+      return {
+        nowRound: nowRound,
+        roundsDto: {
+          round: nowRound,
+          scheduleDate: nowScheduleDate,
+          roundDetails: []
+        }
+      }
     }
 
     const parseRestakeData = restakeMongoDB.parsingRestakeTransactions(nowRound, restakeExecuteResults, scheduleDate);
@@ -115,7 +121,7 @@ export class SchedulerServiceService {
     }
   }
 
-  private async unprocesssRound(round: number, nowScheduleDate: string) {
+  private async unprocessRound(round: number, nowScheduleDate: string) {
     // Create history data
     await this.historiesService.create({
       round: round,
