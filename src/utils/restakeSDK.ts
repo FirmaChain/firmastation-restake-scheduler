@@ -70,6 +70,10 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
     let spliceRestakeMessages = spliceAsBatchTxsCount(originRestakeMessages, BATCH_TX_COUNT);
     for (let i = 0; i < spliceRestakeMessages.length; i++) {
       const spliceRestakeMessage = spliceRestakeMessages[i];
+      if (spliceRestakeMessage.length === 0) {
+        continue;
+      }
+      
       const separateRestakeData = RestakeSDKHelper().separateRestakeMessageAndTargets(spliceRestakeMessage);
       const restakeExecuteMessages = separateRestakeData.restakeExecuteMessages;
       const restakeExecuteTargets = separateRestakeData.restakeExecuteTargets;
@@ -82,8 +86,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
       if (executeTxResult.errorType === ERROR_NONE || executeTxResult.errorType === ERROR_INSUFFICIENT) {
         successTransactionStates.push(executeTxResult);
       } else {
-        console.log(`restake failed reason: ${executeTxResult.errorType}`);
-        console.log(restakeExecuteMessages);
+        console.log(`<EXECUTE> restake failed reason: ${executeTxResult.errorType}`);
         retryRestakeTargets.push(restakeExecuteTargets);
       }
     }
@@ -122,7 +125,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
 
           break;
         } else {
-          console.log(`restake failed reason: ${executeTxResult.errorType}`);
+          console.log(`<RETRY> restake failed reason: ${executeTxResult.errorType}`);
         }
       }
     }
@@ -223,8 +226,6 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         maxToken: maxToken
       }
     } catch (e) {
-      // console.log(e);
-
       return {
         isValid: false,
         maxToken: undefined
