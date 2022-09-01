@@ -37,7 +37,7 @@ export class SchedulerServiceService {
 
   private async restakeProcess() {
     // restake flow
-    const restakeSDK = await RestakeSDK(false);
+    const restakeSDK = await RestakeSDK();
     const restakeTargets = await restakeSDK.getRestakeTargets();
     const restakeMessages = await restakeSDK.getRestakeMessages(restakeTargets);
     const restakeExecuteResults = await restakeSDK.executeAllowanceMessages(restakeMessages);

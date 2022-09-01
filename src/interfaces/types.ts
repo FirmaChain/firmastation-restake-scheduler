@@ -3,46 +3,15 @@ import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/an
 import { BroadcastTxResponse } from "@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient";
 import { CreateRoundsDto } from "src/dtos/rounds.dto";
 
-export interface IRestakeInfo {
-  frequency: string,
-  minimumRewards: number,
-  round: number,
-  feesAmount: string,
-  restakeAmount: string,
-  restakeCount: number,
-  nextRoundDateTime: string
-}
-
-export interface IRoundDetail {
-  feesAmount: number;
-  restakeAmount: number;
-  restakeCount: number;
-  dateTime: string;
-  txHash: string;
-}
-
-export interface IRestakeRoundData {
-  round: number,
-  restakeAmount: number,
-  feesAmount: number,
-  restakeCount: number,
-  startDateTime: string,
-  retakeTotalTime: number,
-  roundDetails: IRoundDetail[]
-}
-
 export interface IRestakeTarget {
   validatorAddr: string,
-  delegatorAddr: string
+  delegatorAddr: string,
+  rewards: number
 }
 
 export interface IExecuteMessage {
   message: Any,
   restakeTarget: IRestakeTarget
-}
-
-export interface ITransactionData {
-  txHash: string,
 }
 
 export interface ITransactionState {

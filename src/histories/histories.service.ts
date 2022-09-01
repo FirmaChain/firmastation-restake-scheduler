@@ -13,10 +13,6 @@ export class HistoriesService {
     return await this.historiesModel.create(createHistoriesDto);
   }
 
-  async findAll(): Promise<Histories[]> {
-    return await this.historiesModel.find().exec();
-  }
-
   async findOne(round: number): Promise<Histories> {
     return await this.historiesModel.findOne({ round: round }).exec();
   }

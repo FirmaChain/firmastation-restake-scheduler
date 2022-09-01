@@ -7,7 +7,7 @@ import { ITransactionState, IExecuteMessage, IRestakeTarget } from "src/interfac
 import { spliceAsBatchTxsCount } from "./batchCount";
 import { RestakeSDKHelper } from "./restakeSDKHelper";
 
-const RestakeSDK = async (isShowLog: boolean = false) => {
+const RestakeSDK = async () => {
   const firmaSDK = new FirmaSDK(FIRMACHAIN_CONFIG);
   const restakeWallet = await firmaSDK.Wallet.fromMnemonic(RESTAKE_MNEMONIC);
   const restakeAddress = await restakeWallet.getAddress();
@@ -25,7 +25,8 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
 
         restakeTargets.push({
           validatorAddr: validatorAddress,
-          delegatorAddr: delegatorAddress
+          delegatorAddr: delegatorAddress,
+          rewards: 0
         });
       }
     }
@@ -55,7 +56,8 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
         message: executeMessage,
         restakeTarget: {
           validatorAddr: validatorAddress,
-          delegatorAddr: delegatorAddress
+          delegatorAddr: delegatorAddress,
+          rewards: rewardsInfo.rewards
         }
       });
     }
@@ -73,7 +75,7 @@ const RestakeSDK = async (isShowLog: boolean = false) => {
       if (spliceRestakeMessage.length === 0) {
         continue;
       }
-      
+
       const separateRestakeData = RestakeSDKHelper().separateRestakeMessageAndTargets(spliceRestakeMessage);
       const restakeExecuteMessages = separateRestakeData.restakeExecuteMessages;
       const restakeExecuteTargets = separateRestakeData.restakeExecuteTargets;

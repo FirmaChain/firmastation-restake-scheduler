@@ -4,11 +4,10 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 import { MONGODB_URI } from './config';
 import { HistoriesModule } from './histories/histories.module';
-import { RestakeController } from './restake/restake.controller';
-import { RestakeService } from './restake/restake.service';
 import { RoundsModule } from './rounds/rounds.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { SchedulerServiceService } from './scheduler-service/scheduler-service.service';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -18,7 +17,7 @@ import { SchedulerServiceService } from './scheduler-service/scheduler-service.s
     RoundsModule,
     HistoriesModule
   ],
-  controllers: [RestakeController, ],
-  providers: [RestakeService, SchedulerServiceService, ]
+  controllers: [AppController],
+  providers: [SchedulerServiceService]
 })
 export class AppModule {}
