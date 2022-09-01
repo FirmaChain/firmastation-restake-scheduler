@@ -8,6 +8,7 @@ import { RoundsModule } from './rounds/rounds.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { SchedulerServiceService } from './scheduler-service/scheduler-service.service';
 import { AppController } from './app.controller';
+import { LatestRoundsModule } from './latest-rounds/latest-rounds.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { AppController } from './app.controller';
     MongooseModule.forRoot(MONGODB_URI),
     StatusesModule,
     RoundsModule,
-    HistoriesModule
+    HistoriesModule,
+    LatestRoundsModule
   ],
   controllers: [AppController],
   providers: [SchedulerServiceService]

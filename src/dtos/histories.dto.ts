@@ -1,14 +1,7 @@
-export class CreateHistoriesDto {
+import { HistoryDetail } from "src/interfaces/types";
+
+export class HistoriesDto {
   readonly round: number;
   readonly scheduleDate: string;
   readonly historyDetails: HistoryDetail[];
-}
-
-export class HistoryDetail {
-  txHash: string;
-  gasUsed: number;
-  gasWanted: number;
-  height: number;
-  dateTime: string;
-  rawLog: string;
 }

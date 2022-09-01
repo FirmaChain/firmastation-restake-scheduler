@@ -10,7 +10,6 @@ import { RoundsService } from './rounds.service';
       name: Rounds.name,
       useFactory: () => {
         const schema = RoundsSchema;
-        schema.plugin(require('mongoose-autopopulate'));
         schema.pre('save', () => {
           console.log('Round pre save');
         });

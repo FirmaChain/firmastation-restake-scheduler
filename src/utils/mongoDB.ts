@@ -1,6 +1,6 @@
-import { CreateHistoriesDto, HistoryDetail } from "src/dtos/histories.dto";
-import { CreateRoundsDto, RoundDetail } from "src/dtos/rounds.dto";
-import { ITransactionState } from "src/interfaces/types"
+import { HistoriesDto } from "src/dtos/histories.dto";
+import { RoundsDto } from "src/dtos/rounds.dto";
+import { HistoryDetail, ITransactionState, RoundDetail } from "src/interfaces/types"
 import { RestakeSDKHelper } from "./restakeSDKHelper";
 
 const RestakeMongoDB = () => {
@@ -55,13 +55,13 @@ const RestakeMongoDB = () => {
       });
     }
 
-    const historyDto: CreateHistoriesDto = {
+    const historyDto: HistoriesDto = {
       round: nowRound,
       scheduleDate: scheduleDate,
       historyDetails: historyDetails
     }
 
-    const roundDto: CreateRoundsDto = {
+    const roundDto: RoundsDto = {
       round: nowRound,
       scheduleDate: scheduleDate,
       roundDetails: roundDetails

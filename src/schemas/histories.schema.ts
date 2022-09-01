@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HistoryDetail } from "../dtos/histories.dto";
+import { HistoryDetail } from "src/interfaces/types";
 
 export type HistoriesDocument = Histories & Document;
 

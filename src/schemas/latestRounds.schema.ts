@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { RoundDetail } from "src/interfaces/types";
 
-export type RoundsDocument = Rounds & Document;
+export type LatestRoundsDocument = LatestRounds & Document;
 
 @Schema()
-export class Rounds {
+export class LatestRounds {
   @Prop({ required: true })
   round: number;
 
@@ -15,4 +15,4 @@ export class Rounds {
   roundDetails: RoundDetail[]
 }
 
-export const RoundsSchema = SchemaFactory.createForClass(Rounds);
+export const LatestRoundsSchema = SchemaFactory.createForClass(LatestRounds);

@@ -11,13 +11,15 @@ import { ITransactionState, IWriteDBResult } from 'src/interfaces/types';
 import { sendRestakeFailedResultMessage, sendRestakeResultMessage } from 'src/components/telegram';
 import { ERROR_CALC_GAS, ERROR_EXECUTE_MESSAGE, ERROR_INSUFFICIENT, ERROR_NONE } from 'src/constants/errorType';
 import { RETRY_COUNT } from 'src/config';
+import { LatestRoundsService } from 'src/latest-rounds/latest-rounds.service';
 
 @Injectable()
 export class SchedulerServiceService {
   constructor(
     private readonly historiesService: HistoriesService,
     private readonly roundsService: RoundsService,
-    private readonly statusesService: StatusesService
+    private readonly statusesService: StatusesService,
+    private readonly latestRoundsService: LatestRoundsService
   ) {
     
   }
@@ -78,6 +80,7 @@ export class SchedulerServiceService {
 
     await this.historiesService.create(historyDto);
     await this.roundsService.create(roundDto);
+    await this.latestRoundsService.createAndUpdate(roundDto);
 
     let restakeAmount = 0;
     let feesAmount = 0;
