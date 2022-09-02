@@ -140,6 +140,12 @@ export class SchedulerServiceService {
     // Create & Update status data
     const statusCount = await this.statusesService.count();
 
+    await this.latestRoundsService.createAndUpdate({
+      round: round,
+      scheduleDate: nowScheduleDate,
+      roundDetails: []
+    });
+
     if (statusCount === 0) {
       // Create
       await this.statusesService.create({
