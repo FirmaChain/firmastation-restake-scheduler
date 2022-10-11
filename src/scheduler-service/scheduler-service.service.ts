@@ -39,21 +39,27 @@ export class SchedulerServiceService {
 
   private async restakeProcess() {
     // restake flow
-    const restakeSDK = await RestakeSDK();
-    const restakeTargets = await restakeSDK.getRestakeTargets();
-    const restakeMessages = await restakeSDK.getRestakeMessages(restakeTargets);
-    const restakeExecuteResults = await restakeSDK.executeAllowanceMessages(restakeMessages);
+    try {
+      const restakeSDK = await RestakeSDK();
+      const restakeTargets = await restakeSDK.getRestakeTargets();
+      const restakeMessages = await restakeSDK.getRestakeMessages(restakeTargets);
+      const restakeExecuteResults = await restakeSDK.executeAllowanceMessages(restakeMessages);
 
-    // retry flow
-    let successTransactionStates = restakeExecuteResults.successTransactionStates;
-    let retryRestakeTargets = restakeExecuteResults.retryRestakeTargets;
+      // retry flow
+      let successTransactionStates = restakeExecuteResults.successTransactionStates;
+      let retryRestakeTargets = restakeExecuteResults.retryRestakeTargets;
+  
+      if (retryRestakeTargets.length > 0) {
+        const retryRestakeExecuteResults = await restakeSDK.retryExecuteAllowanceMessages(retryRestakeTargets);
+        successTransactionStates.push(...retryRestakeExecuteResults);
+      }
 
-    if (retryRestakeTargets.length > 0) {
-      const retryRestakeExecuteResults = await restakeSDK.retryExecuteAllowanceMessages(retryRestakeTargets);
-      successTransactionStates.push(...retryRestakeExecuteResults);
+      return successTransactionStates;
+    } catch (e) {
+      console.log(e);
+      const transactionStates: ITransactionState[] = [];
+      return transactionStates;
     }
-
-    return successTransactionStates;
   }
 
   private async writeDBProcess(restakeExecuteResults: ITransactionState[], scheduleDate: string) {
@@ -208,7 +214,10 @@ export class SchedulerServiceService {
     await sendRestakeResultMessage(resultMsg);
 
     // send failed message
-    if (failedCount > 0) {
+    if (failedCount === 0 && successCount === 0) {
+      failedMsg += "Not process restake(Time out lcd)";
+      await sendRestakeFailedResultMessage(failedMsg);
+    } else if (failedCount > 0) {
       await sendRestakeFailedResultMessage(failedMsg);
     }
   }
