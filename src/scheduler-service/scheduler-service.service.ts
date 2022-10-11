@@ -173,6 +173,7 @@ export class SchedulerServiceService {
   private async sendTelegram(writeDBResult: IWriteDBResult) {
     let successCount = 0;
     let failedCount = 0;
+    let restakeCount = 0;
     let resultMsg = `[ ● RESTAKE ● ]\nROUND: ${writeDBResult.nowRound}\n`;
     let failedMsg = '[ ● ERRORS ● ]\n';
 
@@ -183,6 +184,7 @@ export class SchedulerServiceService {
 
         if (roundDetail.reason === ERROR_NONE) {
           successCount++;
+          restakeCount += roundDetail.restakeCount;
         } else {
           failedCount++;
 
@@ -206,6 +208,7 @@ export class SchedulerServiceService {
       failedMsg += '\n'
       resultMsg += `SUCCESS: ${successCount}\n`;
       resultMsg += `FAILED: ${failedCount}\n`;
+      resultMsg += `COUNT: ${restakeCount}`;
     } else {
       resultMsg += 'not found targets';
     }
