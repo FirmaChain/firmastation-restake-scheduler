@@ -1,5 +1,6 @@
 import { AuthorizationType, FirmaSDK, FirmaUtil, StakingTxClient } from "@firmachain/firma-js";
 import { Any } from "@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any";
+import { StakingValidatorStatus } from "@firmachain/firma-js/dist/sdk/FirmaStakingService";
 
 import { BATCH_TX_COUNT, FIRMACHAIN_CONFIG, MINIMUM_UFCT_REWARD_AMOUNT, RESTAKE_MNEMONIC, RETRY_COUNT } from "src/config";
 import { ERROR_CALC_GAS, ERROR_EXECUTE_MESSAGE, ERROR_INSUFFICIENT, ERROR_NONE } from "src/constants/errorType";
@@ -148,7 +149,7 @@ const RestakeSDK = async () => {
     let valoperAddrs: string[] = [];
 
     while (paginationKey !== null) {
-      const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(paginationKey);
+      const nextValidatorInfo = await firmaSDK.Staking.getValidatorList(StakingValidatorStatus.BONDED, paginationKey);
       const nextValidatorList = nextValidatorInfo.dataList;
 
       validatorList.push(...nextValidatorList);
