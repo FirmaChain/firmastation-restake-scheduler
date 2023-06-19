@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-
-import { RoundsDto } from 'src/dtos/rounds.dto';
-import { Rounds, RoundsDocument } from '../schemas/rounds.schema';
+import { Rounds, RoundsDocument } from './rounds.schema';
+import { RoundsDto } from './rounds.interface';
 
 @Injectable()
 export class RoundsService {

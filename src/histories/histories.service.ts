@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { HistoriesDto } from '../dtos/histories.dto';
-import { Histories, HistoriesDocument } from '../schemas/histories.schema';
+import { Histories, HistoriesDocument } from './histories.schema';
+import { HistoriesDto } from './histories.interface';
+
 
 @Injectable()
 export class HistoriesService {

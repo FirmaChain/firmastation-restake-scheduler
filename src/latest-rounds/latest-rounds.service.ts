@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { LatestRoundsDto } from 'src/dtos/latestRounds.dto';
-import { RoundsDto } from 'src/dtos/rounds.dto';
 
-import { LatestRounds, LatestRoundsDocument } from 'src/schemas/latestRounds.schema';
+import { LatestRounds, LatestRoundsDocument } from './latest-rounds.schema';
+import { RoundsDto } from 'src/rounds/rounds.interface';
+import { LatestRoundsDto } from './latest-rounds.interface';
 
 @Injectable()
 export class LatestRoundsService {

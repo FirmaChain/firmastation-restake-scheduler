@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { Statuses, StatusesSchema } from '../schemas/statuses.schema';
 import { StatusesService } from './statuses.service';
+import { Statuses, StatusesSchema } from './statuses.schema';
 
 @Module({
   imports: [MongooseModule.forFeatureAsync([

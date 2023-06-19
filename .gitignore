@@ -3,7 +3,11 @@
 /node_modules
 
 # enviroment & config
-config.ts
+.env.production
+.env.development
+.env.test
+
+telegraf.constant.ts
 
 # Logs
 logs

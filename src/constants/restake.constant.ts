@@ -1,0 +1,5 @@
+export const RESTAKE_SUCCESS = 0;
+export const RESTAKE_FAILED_CALC_GAS = 1;
+export const RESTAKE_FAILED_INSUFFICIENT = 2;
+export const RESTAKE_FAILED_EXECUTE = 3;
+

@@ -1,6 +1,6 @@
-import { RoundDetail } from "src/interfaces/types";
+import { RoundDetail } from "src/rounds/rounds.interface";
 
-export class RoundsDto {
+export class LatestRoundsDto {
   readonly round: number;
   readonly scheduleDate: string;
   readonly roundDetails: RoundDetail[]

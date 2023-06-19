@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { StatusesDto } from '../dtos/statuses.dto';
-import { Statuses, StatusesDocument } from '../schemas/statuses.schema';
+import { Statuses, StatusesDocument } from './statuses.schema';
+import { StatusesDto } from './statuses.interface';
 
 @Injectable()
 export class StatusesService {

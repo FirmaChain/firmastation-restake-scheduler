@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { Rounds, RoundsSchema } from '../schemas/rounds.schema';
 import { RoundsService } from './rounds.service';
+import { Rounds, RoundsSchema } from './rounds.schema';
 
 @Module({
   imports: [MongooseModule.forFeatureAsync([

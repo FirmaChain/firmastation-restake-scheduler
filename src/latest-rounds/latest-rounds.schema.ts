@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { RoundDetail } from "src/interfaces/types";
+import { RoundDetail } from "src/rounds/rounds.interface";
 
 export type LatestRoundsDocument = LatestRounds & Document;
 
