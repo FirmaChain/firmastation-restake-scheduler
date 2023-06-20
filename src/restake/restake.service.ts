@@ -104,8 +104,8 @@ export class RestakeService {
 
       for (let j = 0; j < delegateAddresses.length; j++) {
         delegatorTargets.push({
-          validatorAddress,
-          delegatorAddress: delegateAddresses[j]
+          validatorAddr: validatorAddress,
+          delegatorAddr: delegateAddresses[j]
         })
       }
     }
@@ -126,27 +126,23 @@ export class RestakeService {
   }
 
   private async getAllowedExecuteMessage(delegatorTarget: Target) {
-    const { validatorAddress, delegatorAddress } = delegatorTarget;
+    const { validatorAddr, delegatorAddr } = delegatorTarget;
 
-    const withdrawAddress = await this.getWithdrawAddress(delegatorAddress);
-    if (withdrawAddress !== delegatorAddress) return null;
+    const withdrawAddress = await this.getWithdrawAddress(delegatorAddr);
+    if (withdrawAddress !== delegatorAddr) return null;
 
-    const rewards = await this.getDelegateRewards(validatorAddress, delegatorAddress);
+    const rewards = await this.getDelegateRewards(validatorAddr, delegatorAddr);
     if (rewards === 0) return null;
 
-    const isAuthzStakingGrant = await this.checkAuthzStakingGrant(validatorAddress, delegatorAddress);
+    const isAuthzStakingGrant = await this.checkAuthzStakingGrant(validatorAddr, delegatorAddr);
     if (isAuthzStakingGrant === false) return null;
 
-    const transactionMessage = await this.makeTransactionMessage(validatorAddress, delegatorAddress, rewards);
+    const transactionMessage = await this.makeTransactionMessage(validatorAddr, delegatorAddr, rewards);
     if (transactionMessage === null) return null;
 
     return {
       message: transactionMessage,
-      target: {
-        validatorAddress: validatorAddress,
-        delegatorAddress: delegatorAddress,
-        rewards: rewards
-      }
+      target: { validatorAddr, delegatorAddr, rewards }
     }
   }
 

@@ -30,7 +30,7 @@ export class RestakeTaskService {
         callback(`❎ Crontab is already registry(start) : ${this.jobName}`);
         return ;
       } else {
-        const cronJob = new CronJob(CronExpression.EVERY_HOUR, async () => {
+        const cronJob = new CronJob(CronExpression.EVERY_4_HOURS, async () => {
           // TODO
           const restakeResult = await this.restakeSchedulerTask();
           const { resultMsg, failedMsg } = this.makeMessageByRestakeResult(restakeResult.data, restakeResult.round);

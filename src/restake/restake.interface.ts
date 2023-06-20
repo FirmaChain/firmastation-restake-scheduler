@@ -3,16 +3,16 @@ import { Any } from '@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/an
 import { BroadcastTxResponse } from '@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient';
 
 export interface Target {
-  validatorAddress: string,
-  delegatorAddress: string,
+  validatorAddr: string,
+  delegatorAddr: string,
   rewards?: number
 }
 
 export interface RestakeMessage {
   message: Any,
   target: {
-    validatorAddress: string,
-    delegatorAddress: string,
+    validatorAddr: string,
+    delegatorAddr: string,
     rewards: number,
   }
 }
