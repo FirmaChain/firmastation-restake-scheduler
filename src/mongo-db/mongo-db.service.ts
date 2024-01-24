@@ -26,7 +26,7 @@ export class MongoDbService {
   async saveDB(transactionResults: TransactionResult[], scheduleDate: string) {
     let nowRound = 0;
     try {
-      nowRound = await this.historiesService.count() + 1;
+      nowRound = await this.roundsService.count() + 1;
       
       if (transactionResults.length === 0) {
         await this.unProcesse(nowRound, scheduleDate);
