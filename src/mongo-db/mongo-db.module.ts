@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Inject, Logger, Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
+import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';
+import { Connection } from 'mongoose';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+
 import { MongoDbService } from './mongo-db.service';
-import { HistoriesModule } from 'src/histories/histories.module';
 import { RoundsModule } from 'src/rounds/rounds.module';
 import { LatestRoundsModule } from 'src/latest-rounds/latest-rounds.module';
 import { StatusesModule } from 'src/statuses/statuses.module';
+import { RestakeBotService } from 'src/restake-bot/restake-bot.service';
 
 @Module({
   imports: [
@@ -18,12 +21,26 @@ import { StatusesModule } from 'src/statuses/statuses.module';
       }),
       inject: [ConfigService]
     }),
-    HistoriesModule,
     RoundsModule,
     LatestRoundsModule,
     StatusesModule,
+    RestakeBotService,
   ],
   providers: [MongoDbService],
   exports: [MongoDbService]
 })
-export class MongoDbModule {}
+export class MongoDbModule implements OnModuleInit {
+  constructor(
+    private readonly restakeBotService: RestakeBotService,
+    @Inject(getConnectionToken()) private readonly connection: Connection,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
+  ) {
+  }
+
+  onModuleInit() {
+    this.connection.on('error', (error) => {
+      this.logger.log(`Failed connect mongodb error: ${error}`);
+      this.restakeBotService.sendNotiMessage(`MongoDB Connect Error: ${error.message}`);
+    });
+  }
+}

@@ -2,8 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Logger } from 'winston';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 
-import { HistoryDetail } from 'src/histories/histories.interface';
-import { HistoriesService } from 'src/histories/histories.service';
 import { TransactionResult } from 'src/restake/restake.interface';
 import { RoundDetail } from 'src/rounds/rounds.interface';
 import { RoundsService } from 'src/rounds/rounds.service';
@@ -14,7 +12,6 @@ import { NextScheduleDate } from 'src/utils/scheduleDate.util';
 @Injectable()
 export class MongoDbService {
   constructor(
-    private readonly historiesService: HistoriesService,
     private readonly roundsService: RoundsService,
     private readonly latestRoundsService: LatestRoundsService,
     private readonly statusesService: StatusesService,
@@ -29,7 +26,6 @@ export class MongoDbService {
       nowRound = await this.roundsService.count() + 1;
       
       if (transactionResults.length === 0) {
-        await this.unProcesse(nowRound, scheduleDate);
         return {
           message: `Unprocess round`,
           round: nowRound,
@@ -52,11 +48,10 @@ export class MongoDbService {
       }
     }
   }
-
+ 
   async saveRoundData(transactionResults: TransactionResult[], round: number, scheduleDate: string) {
-    const { historyDetails, roundDetails } = this.parseTransactionResults(transactionResults);
+    const roundDetails = this.parseTransactionResults(transactionResults);
 
-    await this.historiesService.create({ round, historyDetails, scheduleDate });
     await this.roundsService.create({ round, roundDetails, scheduleDate });
     await this.latestRoundsService.createAndUpdate({ round, roundDetails, scheduleDate });
 
@@ -99,54 +94,27 @@ export class MongoDbService {
     return roundDetails;
   }
 
-  private async unProcesse(round: number, scheduleDate: string) {
-    try {
-      await this.historiesService.create({
-        round: round,
-        scheduleDate: scheduleDate,
-        historyDetails: []
-      });
-    } catch (e) {
-      this.logger.error(`❌ Failed unprocess data : ${e}`);
-    }
-  }
-
   private parseTransactionResults(transactionResults: TransactionResult[]) {
-    let historyDetails: HistoryDetail[] = [];
     let roundDetails: RoundDetail[] = [];
     
     transactionResults.forEach((elem) => {
       const transactionResult = elem.transactionResult;
 
       let txHash = '';
-      let gasUsed = 0;
       let gasWanted = 0;
-      let height = 0;
       let rawLog = '';
       let fees = 0;
 
       if (transactionResult !== null) {
         txHash = transactionResult.transactionHash;
-        gasUsed = transactionResult['gasUsed'];
         gasWanted = transactionResult['gasWanted'];
-        height = transactionResult.height;
         rawLog = transactionResult.rawLog;
         fees = gasWanted * 0.1;
       }
 
-      let dateTime = elem.dateTime;
       let parseRawLog = this.parseRawLog(rawLog);
       let restakeAmount = parseRawLog.restakeAmount;
       let restakeCount = parseRawLog.restakeCount;
-
-      historyDetails.push({
-        txHash: txHash,
-        gasUsed: gasUsed,
-        gasWanted: gasWanted,
-        height: height,
-        rawLog: rawLog,
-        dateTime: dateTime
-      });
 
       roundDetails.push({
         txHash: txHash,
@@ -161,10 +129,7 @@ export class MongoDbService {
       });
     });
 
-    return {
-      historyDetails,
-      roundDetails
-    }
+    return roundDetails;
   }
 
   private parseRawLog(rawLog: string) {
