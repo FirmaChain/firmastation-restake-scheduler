@@ -9,6 +9,7 @@ import { RoundsModule } from 'src/rounds/rounds.module';
 import { LatestRoundsModule } from 'src/latest-rounds/latest-rounds.module';
 import { StatusesModule } from 'src/statuses/statuses.module';
 import { RestakeBotService } from 'src/restake-bot/restake-bot.service';
+import { RestakeBotModule } from 'src/restake-bot/restake-bot.module';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { RestakeBotService } from 'src/restake-bot/restake-bot.service';
     RoundsModule,
     LatestRoundsModule,
     StatusesModule,
-    RestakeBotService,
+    RestakeBotModule,
   ],
   providers: [MongoDbService],
   exports: [MongoDbService]
