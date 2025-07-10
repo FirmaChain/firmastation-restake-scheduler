@@ -20,7 +20,7 @@ import { RestakeBotModule } from 'src/restake-bot/restake-bot.module';
         useNewUrlParser: true,
         useUnifiedTopology: true,
       }),
-      inject: [ConfigService]
+      inject: [ConfigService],
     }),
     RoundsModule,
     LatestRoundsModule,
@@ -28,20 +28,21 @@ import { RestakeBotModule } from 'src/restake-bot/restake-bot.module';
     RestakeBotModule,
   ],
   providers: [MongoDbService],
-  exports: [MongoDbService]
+  exports: [MongoDbService],
 })
 export class MongoDbModule implements OnModuleInit {
   constructor(
     private readonly restakeBotService: RestakeBotService,
     @Inject(getConnectionToken()) private readonly connection: Connection,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
-  ) {
-  }
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {}
 
   onModuleInit() {
     this.connection.on('error', (error) => {
       this.logger.log(`Failed connect mongodb error: ${error}`);
-      this.restakeBotService.sendNotiMessage(`MongoDB Connect Error: ${error.message}`);
+      this.restakeBotService.sendNotiMessage(
+        `MongoDB Connect Error: ${error.message}`,
+      );
     });
   }
 }
