@@ -29,6 +29,30 @@ export class RestakeBotService {
     // Start telegram bot
     this.bot.launch();
     this.notiBot.launch();
+
+    this.bot.telegram
+      .sendMessage(
+        this.chatId,
+        '✅ RestakeBotService status bot connected successfully.',
+        {
+          link_preview_options: { is_disabled: true },
+        },
+      )
+      .catch((e) =>
+        this.logger.error(`❌ Failed to send status bot test message: ${e}`),
+      );
+
+    this.notiBot.telegram
+      .sendMessage(
+        this.notiChatId,
+        '✅ RestakeBotService noti bot connected successfully.',
+        {
+          link_preview_options: { is_disabled: true },
+        },
+      )
+      .catch((e) =>
+        this.logger.error(`❌ Failed to send noti bot test message: ${e}`),
+      );
   }
 
   addCommandListener(
