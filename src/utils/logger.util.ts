@@ -1,5 +1,4 @@
-
-import { format, transports } from "winston";
+import { format, transports } from 'winston';
 import 'winston-daily-rotate-file';
 
 import { existsSync, mkdirSync } from 'fs';
@@ -13,12 +12,19 @@ const errorLogDir = `logs/${LOGGER_ERROR}`;
 export const initLogDir = () => {
   if (!existsSync(infoLogDir)) mkdirSync(infoLogDir);
   if (!existsSync(errorLogDir)) mkdirSync(errorLogDir);
-}
+};
 
-const printFormat = format.printf(({ level, message, timestamp }) => `Timestamp: ${timestamp}, Level: ${level}, Message: ${JSON.stringify(message)}`);
+const printFormat = format.printf(
+  ({ level, message, timestamp }) =>
+    `Timestamp: ${timestamp}, Level: ${level}, Message: ${JSON.stringify(
+      message,
+    )}`,
+);
 
 const ignoreErrorFormat = format((info) => {
-  if (info.level === 'error') { return false; }
+  if (info.level === 'error') {
+    return false;
+  }
   return info;
 });
 
@@ -34,7 +40,7 @@ export const winstonOptions = {
       ),
     }),
     new transports.DailyRotateFile({
-      level: LOGGER_INFO, 
+      level: LOGGER_INFO,
       datePattern: 'YYYY-MM-DD',
       filename: `logs/${LOGGER_INFO}/%DATE%.log`,
       maxFiles: 7,
@@ -44,11 +50,11 @@ export const winstonOptions = {
         format.prettyPrint(),
         format.json(),
         printFormat,
-        ignoreErrorFormat()
-      )
+        ignoreErrorFormat(),
+      ),
     }),
     new transports.DailyRotateFile({
-      level: LOGGER_ERROR, 
+      level: LOGGER_ERROR,
       datePattern: 'YYYY-MM-DD',
       filename: `logs/${LOGGER_ERROR}/%DATE%.log`,
       maxFiles: 7,
@@ -57,8 +63,8 @@ export const winstonOptions = {
         format.timestamp(),
         format.prettyPrint(),
         format.json(),
-        printFormat
-      )
+        printFormat,
+      ),
     }),
   ],
 };

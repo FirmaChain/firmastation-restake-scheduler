@@ -8,18 +8,22 @@ import { Logger } from 'winston';
 export class RestakeBotService {
   private bot: Telegraf;
   private chatId: string;
-  
+
   private notiBot: Telegraf;
   private notiChatId: string;
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {
-    this.bot = new Telegraf(this.configService.get<string>('TELEGRAM_STATUS_BOT'));
+    this.bot = new Telegraf(
+      this.configService.get<string>('TELEGRAM_STATUS_BOT'),
+    );
     this.chatId = this.configService.get<string>('TELEGRAM_STATUS_CHAT_ID');
 
-    this.notiBot = new Telegraf(this.configService.get<string>('TELEGRAM_NOTI_BOT'));
+    this.notiBot = new Telegraf(
+      this.configService.get<string>('TELEGRAM_NOTI_BOT'),
+    );
     this.notiChatId = this.configService.get<string>('TELEGRAM_NOTI_CHAT_ID');
 
     // Start telegram bot
@@ -27,10 +31,13 @@ export class RestakeBotService {
     this.notiBot.launch();
   }
 
-  addCommandListener(command: string, callback: (message: string) => Promise<void>) {
+  addCommandListener(
+    command: string,
+    callback: (message: string) => Promise<void>,
+  ) {
     try {
       this.bot.hears(command, async () => {
-        return await callback("");
+        return await callback('');
       });
     } catch (e) {
       throw `❌ Command registration failed. : ${e}`;
@@ -39,7 +46,9 @@ export class RestakeBotService {
 
   async sendMessage(message: string) {
     try {
-      await this.bot.telegram.sendMessage(this.chatId, message, { disable_web_page_preview: true });
+      await this.bot.telegram.sendMessage(this.chatId, message, {
+        link_preview_options: { is_disabled: true },
+      });
       this.logger.info(`✅ Success sendMessage : ${message}`);
     } catch (e) {
       this.logger.error(`❌ Failed sendMessage : ${message}`);
@@ -48,7 +57,9 @@ export class RestakeBotService {
 
   async sendNotiMessage(message: string) {
     try {
-      await this.notiBot.telegram.sendMessage(this.notiChatId, message, { disable_web_page_preview: true });
+      await this.notiBot.telegram.sendMessage(this.notiChatId, message, {
+        link_preview_options: { is_disabled: true },
+      });
       this.logger.info(`✅ Success sendNotiMessage : ${message}`);
     } catch (e) {
       this.logger.error(`❌ Failed sendNotiMessage : ${message}`);

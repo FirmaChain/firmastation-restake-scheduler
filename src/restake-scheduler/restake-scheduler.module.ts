@@ -5,10 +5,7 @@ import { RestakeBotModule } from 'src/restake-bot/restake-bot.module';
 import { RestakeTaskModule } from 'src/restake-task/restake-task.module';
 
 @Module({
-  imports: [
-    RestakeBotModule,
-    RestakeTaskModule
-  ],
-  providers: [RestakeSchedulerService]
+  imports: [RestakeBotModule, RestakeTaskModule],
+  providers: [RestakeSchedulerService],
 })
 export class RestakeSchedulerModule {}

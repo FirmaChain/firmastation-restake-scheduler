@@ -5,6 +5,6 @@ import { RestakeService } from './restake.service';
 
 @Module({
   providers: [RestakeService, ConfigService],
-  exports: [RestakeService]
+  exports: [RestakeService],
 })
 export class RestakeModule {}

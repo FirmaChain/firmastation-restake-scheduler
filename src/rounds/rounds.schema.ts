@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { RoundDetail } from "./rounds.interface";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { RoundDetail } from './rounds.interface';
 
 export type RoundsDocument = Rounds & Document;
 
@@ -12,7 +12,7 @@ export class Rounds {
   scheduleDate: string;
 
   @Prop({ required: true })
-  roundDetails: RoundDetail[]
+  roundDetails: RoundDetail[];
 }
 
 export const RoundsSchema = SchemaFactory.createForClass(Rounds);

@@ -7,19 +7,22 @@ import { StatusesDto } from './statuses.interface';
 
 @Injectable()
 export class StatusesService {
-  constructor(@InjectModel(Statuses.name) private readonly statusModel: Model<StatusesDocument>) {}
+  constructor(
+    @InjectModel(Statuses.name)
+    private readonly statusModel: Model<StatusesDocument>,
+  ) {}
 
   async create(createStatusesDto: StatusesDto): Promise<Statuses> {
     return await this.statusModel.create(createStatusesDto);
   }
 
   async findOne(): Promise<Statuses> {
-    let statusCount = await this.statusModel.count();
+    const statusCount = await this.statusModel.count();
 
     if (statusCount === 0) {
       return null;
     }
-    
+
     return await this.statusModel.findOne().exec();
   }
 
@@ -28,7 +31,7 @@ export class StatusesService {
   }
 
   async count(): Promise<number> {
-    let statusCount = await this.statusModel.count();
+    const statusCount = await this.statusModel.count();
 
     if (statusCount === null || statusCount === undefined) {
       return 0;

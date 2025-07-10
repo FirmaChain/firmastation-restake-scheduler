@@ -6,7 +6,10 @@ import { RoundsDto } from './rounds.interface';
 
 @Injectable()
 export class RoundsService {
-  constructor(@InjectModel(Rounds.name) private readonly roundsModel: Model<RoundsDocument>) {}
+  constructor(
+    @InjectModel(Rounds.name)
+    private readonly roundsModel: Model<RoundsDocument>,
+  ) {}
 
   async create(roundsDto: RoundsDto): Promise<Rounds> {
     return await this.roundsModel.create(roundsDto);

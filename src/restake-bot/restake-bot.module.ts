@@ -3,10 +3,7 @@ import { RestakeBotService } from './restake-bot.service';
 import { ConfigService } from '@nestjs/config';
 
 @Module({
-  providers: [
-    RestakeBotService,
-    ConfigService
-  ],
-  exports: [RestakeBotService]
+  providers: [RestakeBotService, ConfigService],
+  exports: [RestakeBotService],
 })
 export class RestakeBotModule {}
