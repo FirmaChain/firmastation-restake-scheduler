@@ -1,6 +1,6 @@
 {
   "name": "firmastation-restake-scheduler",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "firmastation-restake-scheduler",
   "author": "",
   "private": true,
@@ -23,7 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@firmachain/firma-js": "^0.2.51",
+    "@firmachain/firma-js": "^0.3.2",
     "@nestjs/common": "^9.4.2",
     "@nestjs/config": "^2.3.3",
     "@nestjs/core": "^9.4.2",
@@ -31,6 +31,7 @@
     "@nestjs/platform-express": "^9.4.2",
     "@nestjs/schedule": "^2.2.3",
     "@types/node-cron": "^3.0.7",
+    "cron": "^4.3.1",
     "moment": "^2.29.4",
     "mongoose": "^7.2.3",
     "mongoose-autopopulate": "^1.0.1",
