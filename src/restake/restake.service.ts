@@ -9,13 +9,13 @@ import {
   FirmaSDK,
   FirmaUtil,
   GrantStakingData,
-  StakingTxClient
+  StakingTxClient,
 } from '@firmachain/firma-js';
 import {
   RESTAKE_FAILED_CALC_GAS,
   RESTAKE_FAILED_EXECUTE,
   RESTAKE_FAILED_INSUFFICIENT,
-  RESTAKE_SUCCESS
+  RESTAKE_SUCCESS,
 } from 'src/constants/restake.constant';
 import { FirmaWalletService } from '@firmachain/firma-js/dist/sdk/FirmaWalletService';
 import { StakingValidatorStatus } from '@firmachain/firma-js/dist/sdk/FirmaStakingService';
@@ -52,27 +52,18 @@ export class RestakeService {
         break;
 
       case 'test':
-        this.firmaSDK = new FirmaSDK({
-          chainID: "roma-1",
-          rpcAddress: "http://192.168.20.108:26657",
-          restApiAddress: "http://192.168.20.108:1317",
-          ipfsNodeAddress: "http://192.168.20.120",
-          ipfsNodePort: 5001,
-          ipfsWebApiAddress: "http://192.168.20.120:8080",
-          hdPath: "m/44'/7777777'/",
-          prefix: "firma",
-          defaultFee: 20000,
-          defaultGas: 200000,
-          denom: "ufct",
-          isShowLog: false,
-        });
+        this.firmaSDK = new FirmaSDK(FirmaConfig.DevNetConfig);
         break;
     }
 
-    this.restakeWallet = await this.firmaSDK.Wallet.fromMnemonic(restakeMnemonic);
+    this.restakeWallet = await this.firmaSDK.Wallet.fromMnemonic(
+      restakeMnemonic,
+    );
     this.restakeAddress = await this.restakeWallet.getAddress();
 
-    this.minimumRewards = this.configService.get<number>('RESTAKE_MINIMUM_REWARD');
+    this.minimumRewards = this.configService.get<number>(
+      'RESTAKE_MINIMUM_REWARD',
+    );
     this.batchCount = this.configService.get<number>('RESTAKE_BATCH_COUNT');
     this.maxRetryCount = this.configService.get<number>('RESTAKE_RETRY_COUNT');
   }
@@ -81,8 +72,10 @@ export class RestakeService {
     // restake process
     const delegatorTargets = await this.getDelegatorTargets();
     const allowedMessages = await this.getAllowedMessages(delegatorTargets);
-    
-    const { txResults, failedTxResults } = await this.getExecuteTxResults(allowedMessages);
+
+    const { txResults, failedTxResults } = await this.getExecuteTxResults(
+      allowedMessages,
+    );
 
     // retry restake process
     if (failedTxResults.length > 0) {
@@ -96,17 +89,19 @@ export class RestakeService {
   private async getDelegatorTargets() {
     const validatorAddresses = await this.getValidatorAddresses();
 
-    let delegatorTargets: Target[] = [];
+    const delegatorTargets: Target[] = [];
 
     for (let i = 0; i < validatorAddresses.length; i++) {
       const validatorAddress = validatorAddresses[i];
-      const delegateAddresses = await this.getDelegateAddresses(validatorAddress);
+      const delegateAddresses = await this.getDelegateAddresses(
+        validatorAddress,
+      );
 
       for (let j = 0; j < delegateAddresses.length; j++) {
         delegatorTargets.push({
           validatorAddr: validatorAddress,
-          delegatorAddr: delegateAddresses[j]
-        })
+          delegatorAddr: delegateAddresses[j],
+        });
       }
     }
 
@@ -114,9 +109,11 @@ export class RestakeService {
   }
 
   private async getAllowedMessages(delegatorTargets: Target[]) {
-    let allowedMessages: RestakeMessage[] = [];
+    const allowedMessages: RestakeMessage[] = [];
     for (let i = 0; i < delegatorTargets.length; i++) {
-      const allowedMessage = await this.getAllowedExecuteMessage(delegatorTargets[i]);
+      const allowedMessage = await this.getAllowedExecuteMessage(
+        delegatorTargets[i],
+      );
       if (allowedMessage !== null) {
         allowedMessages.push(allowedMessage);
       }
@@ -134,48 +131,59 @@ export class RestakeService {
     const rewards = await this.getDelegateRewards(validatorAddr, delegatorAddr);
     if (rewards === 0) return null;
 
-    const isAuthzStakingGrant = await this.checkAuthzStakingGrant(validatorAddr, delegatorAddr);
+    const isAuthzStakingGrant = await this.checkAuthzStakingGrant(
+      validatorAddr,
+      delegatorAddr,
+    );
     if (isAuthzStakingGrant === false) return null;
 
-    const transactionMessage = await this.makeTransactionMessage(validatorAddr, delegatorAddr, rewards);
+    const transactionMessage = await this.makeTransactionMessage(
+      validatorAddr,
+      delegatorAddr,
+      rewards,
+    );
     if (transactionMessage === null) return null;
 
     return {
       message: transactionMessage,
-      target: { validatorAddr, delegatorAddr, rewards }
-    }
+      target: { validatorAddr, delegatorAddr, rewards },
+    };
   }
 
   private async getExecuteTxResults(allowedMessages: RestakeMessage[]) {
-    let txResults: TransactionResult[] = [];
-    let failedTxResults: TransactionResult[] = [];
+    const txResults: TransactionResult[] = [];
+    const failedTxResults: TransactionResult[] = [];
 
     if (allowedMessages.length === 0) {
-      return { txResults, failedTxResults }
+      return { txResults, failedTxResults };
     }
-    
+
     const chunkMessages = this.chunkMessages(allowedMessages, this.batchCount);
     for (let i = 0; i < chunkMessages.length; i++) {
       const chunkMessage = chunkMessages[i];
       if (chunkMessage.length === 0) continue;
 
-      let messages: Any[] = [];
-      let targets: Target[] = [];
+      const messages: Any[] = [];
+      const targets: Target[] = [];
 
-      chunkMessage.forEach(item => {
+      chunkMessage.forEach((item) => {
         messages.push(item.message);
         targets.push(item.target);
       });
 
-      const { errorType, transactionResult, dateTime } = await this.getTransactionResult(messages);
-      if (errorType === RESTAKE_SUCCESS || errorType === RESTAKE_FAILED_INSUFFICIENT) {
+      const { errorType, transactionResult, dateTime } =
+        await this.getTransactionResult(messages);
+      if (
+        errorType === RESTAKE_SUCCESS ||
+        errorType === RESTAKE_FAILED_INSUFFICIENT
+      ) {
         txResults.push({
           errorType: errorType,
           dateTime: dateTime,
           transactionResult: transactionResult,
           retryCount: 0,
           originRestakeTargets: targets,
-          finalRestakeTargets: targets
+          finalRestakeTargets: targets,
         });
       } else {
         failedTxResults.push({
@@ -184,14 +192,15 @@ export class RestakeService {
           transactionResult: transactionResult,
           retryCount: 0,
           originRestakeTargets: targets,
-          finalRestakeTargets: targets
-        })
+          finalRestakeTargets: targets,
+        });
       }
     }
 
     return {
-      txResults, failedTxResults
-    }
+      txResults,
+      failedTxResults,
+    };
   }
 
   private async getTransactionResult(messages: Any[]) {
@@ -202,17 +211,17 @@ export class RestakeService {
       return {
         errorType: RESTAKE_FAILED_CALC_GAS,
         dateTime: nowDate,
-        transactionResult: null
-      }
+        transactionResult: null,
+      };
     }
 
     const balance = await this.getRestakeWalletBalance();
-    if (balance < (gasEstimation * 0.1)) {
+    if (balance < gasEstimation * 0.1) {
       return {
         errorType: RESTAKE_FAILED_INSUFFICIENT,
         dateTime: nowDate,
-        transactionResult: null
-      }
+        transactionResult: null,
+      };
     }
 
     const txResult = await this.executeMessages(messages, gasEstimation);
@@ -220,47 +229,54 @@ export class RestakeService {
       return {
         errorType: RESTAKE_FAILED_EXECUTE,
         dateTime: nowDate,
-        transactionResult: null
-      }
+        transactionResult: null,
+      };
     }
 
     return {
       errorType: RESTAKE_SUCCESS,
       dateTime: nowDate,
-      transactionResult: txResult
-    }
+      transactionResult: txResult,
+    };
   }
 
   private async retryRestakeProcess(failedTxResults: TransactionResult[]) {
-    let retryTransactionResults: TransactionResult[] = [];
+    const retryTransactionResults: TransactionResult[] = [];
 
     for (let i = 0; i < failedTxResults.length; i++) {
       const failedTxResult = failedTxResults[i];
 
       let retryCount = 1;
-      let retryTargets = failedTxResult.finalRestakeTargets;
+      const retryTargets = failedTxResult.finalRestakeTargets;
 
       while (retryTargets.length !== 0) {
-        const retryAllowedMessages = await this.getAllowedMessages(retryTargets);
-        let messages: Any[] = [];
-        let targets: Target[] = [];
+        const retryAllowedMessages = await this.getAllowedMessages(
+          retryTargets,
+        );
+        const messages: Any[] = [];
+        const targets: Target[] = [];
 
-        retryAllowedMessages.forEach(item => {
+        retryAllowedMessages.forEach((item) => {
           messages.push(item.message);
           targets.push(item.target);
         });
 
-        const { errorType, transactionResult, dateTime } = await this.getTransactionResult(messages);
+        const { errorType, transactionResult, dateTime } =
+          await this.getTransactionResult(messages);
 
         retryCount++;
-        if (retryCount > this.maxRetryCount || errorType === RESTAKE_SUCCESS || errorType === RESTAKE_FAILED_INSUFFICIENT) {
+        if (
+          retryCount > this.maxRetryCount ||
+          errorType === RESTAKE_SUCCESS ||
+          errorType === RESTAKE_FAILED_INSUFFICIENT
+        ) {
           retryTransactionResults.push({
             errorType: errorType,
             dateTime: dateTime,
             transactionResult: transactionResult,
             retryCount: retryCount,
             originRestakeTargets: retryTargets,
-            finalRestakeTargets: targets
+            finalRestakeTargets: targets,
           });
         } else {
           this.logger.info(`❌ Failed restake : ${errorType}`);
@@ -271,7 +287,6 @@ export class RestakeService {
     return retryTransactionResults;
   }
 
-
   /*
     Functions that query data using a FirmaJS(SDK).
   */
@@ -279,15 +294,20 @@ export class RestakeService {
   // Get validator addresses
   private async getValidatorAddresses() {
     try {
-      const validatorInfo = await this.firmaSDK.Staking.getValidatorList(StakingValidatorStatus.BONDED);
+      const validatorInfo = await this.firmaSDK.Staking.getValidatorList(
+        StakingValidatorStatus.BONDED,
+      );
 
-      let validatorList = validatorInfo.dataList;
+      const validatorList = validatorInfo.dataList;
       let paginationKey = validatorInfo.pagination.next_key;
 
-      let validatorAddresses: string[] = [];
+      const validatorAddresses: string[] = [];
 
       while (paginationKey !== null) {
-        const nextValidatorInfo = await this.firmaSDK.Staking.getValidatorList(StakingValidatorStatus.BONDED, paginationKey);
+        const nextValidatorInfo = await this.firmaSDK.Staking.getValidatorList(
+          StakingValidatorStatus.BONDED,
+          paginationKey,
+        );
 
         validatorList.push(...nextValidatorInfo.dataList);
         paginationKey = nextValidatorInfo.pagination.next_key;
@@ -311,15 +331,22 @@ export class RestakeService {
   // Get delegator addresses
   private async getDelegateAddresses(validatorAddress: string) {
     try {
-      const delegatorInfo = await this.firmaSDK.Staking.getDelegationListFromValidator(validatorAddress);
+      const delegatorInfo =
+        await this.firmaSDK.Staking.getDelegationListFromValidator(
+          validatorAddress,
+        );
 
-      let delegatorList = delegatorInfo.dataList;
+      const delegatorList = delegatorInfo.dataList;
       let paginationKey = delegatorInfo.pagination.next_key;
 
-      let delegatorAddresses: string[] = [];
+      const delegatorAddresses: string[] = [];
 
       while (paginationKey !== null) {
-        const nextDelegatorInfo = await this.firmaSDK.Staking.getDelegationListFromValidator(validatorAddress, paginationKey);
+        const nextDelegatorInfo =
+          await this.firmaSDK.Staking.getDelegationListFromValidator(
+            validatorAddress,
+            paginationKey,
+          );
         delegatorList.push(...nextDelegatorInfo.dataList);
 
         paginationKey = nextDelegatorInfo.pagination.next_key;
@@ -337,9 +364,15 @@ export class RestakeService {
   }
 
   // Gets the delegators deposited with the validator.
-  private async getDelegateRewards(validatorAddress: string, delegatorAddress: string) {
+  private async getDelegateRewards(
+    validatorAddress: string,
+    delegatorAddress: string,
+  ) {
     try {
-      const rewardInfo = await this.firmaSDK.Distribution.getRewardInfo(delegatorAddress, validatorAddress);
+      const rewardInfo = await this.firmaSDK.Distribution.getRewardInfo(
+        delegatorAddress,
+        validatorAddress,
+      );
       const fctString = FirmaUtil.getFCTStringFromUFCT(Number(rewardInfo));
       const ufctString = FirmaUtil.getUFCTStringFromFCT(Number(fctString));
       const rewards = Number(ufctString);
@@ -356,20 +389,32 @@ export class RestakeService {
   }
 
   // Check the delegate's permissions.
-  private async checkAuthzStakingGrant(validatorAddress: string, delegatorAddress: string) {
+  private async checkAuthzStakingGrant(
+    validatorAddress: string,
+    delegatorAddress: string,
+  ) {
     try {
-      const grantInfo = await this.firmaSDK.Authz.getStakingGrantData(delegatorAddress, this.restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE);
-      
-      let grantList = grantInfo.dataList;
+      const grantInfo = await this.firmaSDK.Authz.getStakingGrantData(
+        delegatorAddress,
+        this.restakeAddress,
+        AuthorizationType.AUTHORIZATION_TYPE_DELEGATE,
+      );
+
+      const grantList = grantInfo.dataList;
       let paginationKey = grantInfo.pagination.next_key;
 
       while (paginationKey !== '') {
-        const nextGrantInfo = await this.firmaSDK.Authz.getStakingGrantData(delegatorAddress, this.restakeAddress, AuthorizationType.AUTHORIZATION_TYPE_DELEGATE, paginationKey);
-        
+        const nextGrantInfo = await this.firmaSDK.Authz.getStakingGrantData(
+          delegatorAddress,
+          this.restakeAddress,
+          AuthorizationType.AUTHORIZATION_TYPE_DELEGATE,
+          paginationKey,
+        );
+
         grantList.push(...nextGrantInfo.dataList);
         paginationKey = nextGrantInfo.pagination.next_key;
       }
-      
+
       const typeIdx = this.getStakeAuthorizationTypeIdx(grantList);
       if (typeIdx !== -1) {
         const allowList = grantList[typeIdx].authorization.allow_list.address;
@@ -384,7 +429,9 @@ export class RestakeService {
         return false;
       }
     } catch (e) {
-      this.logger.error(`❌ Failed check staking grant. [${validatorAddress} / ${delegatorAddress}] : ${e}`);
+      this.logger.error(
+        `❌ Failed check staking grant. [${validatorAddress} / ${delegatorAddress}] : ${e}`,
+      );
       return false;
     }
   }
@@ -392,26 +439,40 @@ export class RestakeService {
   // Gets the widthdraw address of delegator.
   private async getWithdrawAddress(delegatorAddress: string) {
     try {
-      return await this.firmaSDK.Distribution.getWithdrawAddress(delegatorAddress);
+      return await this.firmaSDK.Distribution.getWithdrawAddress(
+        delegatorAddress,
+      );
     } catch (e) {
       this.logger.error(`❌ Failed get withdraw. [${delegatorAddress}] : ${e}`);
-      return "";
+      return '';
     }
   }
 
   // Generates a transaction message.
-  private async makeTransactionMessage(validatorAddress: string, delegatorAddress: string, rewards: number) {
+  private async makeTransactionMessage(
+    validatorAddress: string,
+    delegatorAddress: string,
+    rewards: number,
+  ) {
     try {
       const delegateMessage = StakingTxClient.msgDelegate({
         delegatorAddress: delegatorAddress,
         validatorAddress: validatorAddress,
-        amount: { denom: this.firmaSDK.Config.denom, amount: rewards.toString() }
+        amount: {
+          denom: this.firmaSDK.Config.denom,
+          amount: rewards.toString(),
+        },
       });
 
-      const anyData = FirmaUtil.getAnyData(StakingTxClient.getRegistry(), delegateMessage);
+      const anyData = FirmaUtil.getAnyData(
+        StakingTxClient.getRegistry(),
+        delegateMessage,
+      );
       return anyData;
     } catch (e) {
-      this.logger.error(`❌ Failed make transaction message. [${validatorAddress} / ${delegatorAddress} / ${rewards}] : ${e}`);
+      this.logger.error(
+        `❌ Failed make transaction message. [${validatorAddress} / ${delegatorAddress} / ${rewards}] : ${e}`,
+      );
       return null;
     }
   }
@@ -419,7 +480,11 @@ export class RestakeService {
   // Estimate and get the gas cost of the transaction.
   private async calcGasEstimation(messages: Any[]) {
     try {
-      const gasEstimation = await this.firmaSDK.Authz.getGasEstimationExecuteAllowance(this.restakeWallet, messages);
+      const gasEstimation =
+        await this.firmaSDK.Authz.getGasEstimationExecuteAllowance(
+          this.restakeWallet,
+          messages,
+        );
       return gasEstimation;
     } catch (e) {
       this.logger.error(`❌ Failed calc gas estimation message. : ${e}`);
@@ -443,7 +508,11 @@ export class RestakeService {
     const fees = Math.ceil(gasEstimation * 0.1);
 
     try {
-      const txResult = await this.firmaSDK.Authz.executeAllowance(this.restakeWallet, messages, { fee: fees, gas: gasEstimation });
+      const txResult = await this.firmaSDK.Authz.executeAllowance(
+        this.restakeWallet,
+        messages,
+        { fee: fees, gas: gasEstimation },
+      );
       return txResult;
     } catch (e) {
       this.logger.error(`❌ Failed execute allowance : ${e}`);
@@ -458,7 +527,10 @@ export class RestakeService {
   // Check authorization type
   private getStakeAuthorizationTypeIdx(grantList: GrantStakingData[]) {
     for (let i = 0; i < grantList.length; i++) {
-      if (grantList[i].authorization["@type"] === "/cosmos.staking.v1beta1.StakeAuthorization") {
+      if (
+        grantList[i].authorization['@type'] ===
+        '/cosmos.staking.v1beta1.StakeAuthorization'
+      ) {
         return i;
       }
     }
@@ -468,9 +540,9 @@ export class RestakeService {
 
   // Chunk the arrangement according to the batch size.
   private chunkMessages(messages: RestakeMessage[], chunkSize: number) {
-    let result: RestakeMessage[][] = [];
+    const result: RestakeMessage[][] = [];
     for (let i = 0; i < messages.length; i += chunkSize) {
-      let chunk = messages.slice(i, i + chunkSize);
+      const chunk = messages.slice(i, i + chunkSize);
       result.push(chunk);
     }
 
