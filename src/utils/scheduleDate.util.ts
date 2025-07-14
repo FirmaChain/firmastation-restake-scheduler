@@ -1,11 +1,11 @@
 export const NextScheduleDate = () => {
-  let nowDate = new Date();
-  let hours = nowDate.getUTCHours();
-  let newHours = Math.floor(hours / 4) * 4 + 4;
+  const nowDate = new Date();
+  const hours = nowDate.getUTCHours();
+  const newHours = Math.floor(hours / 4) * 4 + 4;
 
   nowDate.setUTCHours(newHours);
   nowDate.setUTCMinutes(0);
   nowDate.setUTCSeconds(0);
 
   return nowDate.toISOString();
-}
+};

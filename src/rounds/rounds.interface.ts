@@ -1,4 +1,4 @@
-import { Target } from "src/restake/restake.interface";
+import { Target } from 'src/restake/restake.interface';
 
 export class RoundDetail {
   txHash: string;
@@ -15,5 +15,5 @@ export class RoundDetail {
 export class RoundsDto {
   readonly round: number;
   readonly scheduleDate: string;
-  readonly roundDetails: RoundDetail[]
+  readonly roundDetails: RoundDetail[];
 }

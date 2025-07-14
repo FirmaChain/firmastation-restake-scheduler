@@ -14,7 +14,7 @@ import { RestakeSchedulerModule } from 'src/restake-scheduler/restake-scheduler.
       isGlobal: true,
       validationSchema: Joi.object({
         MONGODB_URI: Joi.string().required(),
-        
+
         RESTAKE_MNEMONIC: Joi.string().required(),
         RESTAKE_MINIMUM_REWARD: Joi.number().required(),
         RESTAKE_BATCH_COUNT: Joi.number().required(),
@@ -22,12 +22,12 @@ import { RestakeSchedulerModule } from 'src/restake-scheduler/restake-scheduler.
 
         TELEGRAM_STATUS_BOT: Joi.string().required(),
         TELEGRAM_STATUS_CHAT_ID: Joi.string().required(),
-      })
+      }),
     }),
     WinstonModule.forRoot(winstonOptions),
     RestakeSchedulerModule,
   ],
   controllers: [AppController],
-  providers: []
+  providers: [],
 })
 export class AppModule {}

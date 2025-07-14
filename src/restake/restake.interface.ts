@@ -1,27 +1,26 @@
-
+import { DeliverTxResponse } from '@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient';
 import { Any } from '@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any';
-import { BroadcastTxResponse } from '@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient';
 
 export interface Target {
-  validatorAddr: string,
-  delegatorAddr: string,
-  rewards?: number
+  validatorAddr: string;
+  delegatorAddr: string;
+  rewards?: number;
 }
 
 export interface RestakeMessage {
-  message: Any,
+  message: Any;
   target: {
-    validatorAddr: string,
-    delegatorAddr: string,
-    rewards: number,
-  }
+    validatorAddr: string;
+    delegatorAddr: string;
+    rewards: number;
+  };
 }
 
 export interface TransactionResult {
-  errorType: number,
-  dateTime: string,
-  transactionResult: BroadcastTxResponse,
-  retryCount: number,
-  originRestakeTargets: Target[],
-  finalRestakeTargets: Target[]
+  errorType: number;
+  dateTime: string;
+  transactionResult: DeliverTxResponse;
+  retryCount: number;
+  originRestakeTargets: Target[];
+  finalRestakeTargets: Target[];
 }
