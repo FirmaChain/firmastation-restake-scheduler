@@ -23,7 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@firmachain/firma-js": "^0.3.2",
+    "@firmachain/firma-js": "^0.3.3",
     "@nestjs/common": "^9.4.2",
     "@nestjs/config": "^2.3.3",
     "@nestjs/core": "^9.4.2",
@@ -31,6 +31,7 @@
     "@nestjs/platform-express": "^9.4.2",
     "@nestjs/schedule": "^2.2.3",
     "@types/node-cron": "^3.0.7",
+    "bignumber.js": "^9.3.1",
     "cron": "^4.3.1",
     "moment": "^2.29.4",
     "mongoose": "^7.2.3",
