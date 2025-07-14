@@ -9,6 +9,7 @@ import { LatestRoundsService } from 'src/latest-rounds/latest-rounds.service';
 import { StatusesService } from 'src/statuses/statuses.service';
 import { NextScheduleDate } from 'src/utils/scheduleDate.util';
 import { Event } from '@firmachain/firma-js/dist/sdk/firmachain/common/events';
+import { BigNumber } from 'bignumber.js';
 
 @Injectable()
 export class MongoDbService {
@@ -112,15 +113,15 @@ export class MongoDbService {
       const transactionResult = elem.transactionResult;
 
       let txHash = '';
-      let gasWanted = 0;
+      let gasWanted = BigNumber(0);
       let events: readonly Event[] = [];
-      let fees = 0;
+      let fees = BigNumber(0);
 
       if (transactionResult !== null) {
         txHash = transactionResult.transactionHash;
-        gasWanted = Number(transactionResult['gasWanted']);
+        gasWanted = BigNumber(transactionResult['gasWanted']);
         events = transactionResult.events;
-        fees = gasWanted * 0.1;
+        fees = gasWanted.multipliedBy(0.1);
       }
 
       const parseRawLog = this.parseRawLog(events);
@@ -131,7 +132,7 @@ export class MongoDbService {
         txHash: txHash,
         dateTime: elem.dateTime,
         restakeAmount: restakeAmount,
-        feesAmount: fees,
+        feesAmount: fees.toNumber(),
         restakeCount: restakeCount,
         reason: elem.errorType,
         originRestakeTargets: elem.originRestakeTargets,
@@ -148,12 +149,10 @@ export class MongoDbService {
     let restakeCount = 0;
 
     try {
-      // events 매개변수를 직접 사용
       for (let j = 0; j < events.length; j++) {
         const event = events[j];
-        const attributes = event['attributes'];
-
         if (event['type'] !== 'delegate') continue;
+        const attributes = event['attributes'];
 
         for (let k = 0; k < attributes.length; k++) {
           const attribute = attributes[k];
@@ -165,12 +164,12 @@ export class MongoDbService {
           restakeAmount += amount;
           restakeCount++;
         }
-
-        return {
-          restakeAmount,
-          restakeCount,
-        };
       }
+
+      return {
+        restakeAmount,
+        restakeCount,
+      };
     } catch (e) {
       console.log(`Data does not exist.`);
 
