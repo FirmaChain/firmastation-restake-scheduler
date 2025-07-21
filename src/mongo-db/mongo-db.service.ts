@@ -8,7 +8,6 @@ import { RoundsService } from 'src/rounds/rounds.service';
 import { LatestRoundsService } from 'src/latest-rounds/latest-rounds.service';
 import { StatusesService } from 'src/statuses/statuses.service';
 import { NextScheduleDate } from 'src/utils/scheduleDate.util';
-import { Event } from '@firmachain/firma-js/dist/sdk/firmachain/common/events';
 import { BigNumber } from 'bignumber.js';
 
 @Injectable()
@@ -114,7 +113,13 @@ export class MongoDbService {
 
       let txHash = '';
       let gasWanted = BigNumber(0);
-      let events: readonly Event[] = [];
+      let events: readonly {
+        type: string;
+        attributes: {
+          key: string;
+          value: string;
+        }[];
+      }[] = [];
       let fees = BigNumber(0);
 
       if (transactionResult !== null) {
@@ -144,7 +149,12 @@ export class MongoDbService {
     return roundDetails;
   }
 
-  private parseRawLog(events: readonly Event[]) {
+  private parseRawLog(
+    events: readonly {
+      type: string;
+      attributes: { key: string; value: string }[];
+    }[],
+  ) {
     let restakeAmount = 0;
     let restakeCount = 0;
 

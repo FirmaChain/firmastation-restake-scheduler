@@ -1,4 +1,3 @@
-import { DeliverTxResponse } from '@firmachain/firma-js/dist/sdk/firmachain/common/stargateclient';
 import { Any } from '@firmachain/firma-js/dist/sdk/firmachain/google/protobuf/any';
 
 export interface Target {
@@ -19,7 +18,7 @@ export interface RestakeMessage {
 export interface TransactionResult {
   errorType: number;
   dateTime: string;
-  transactionResult: DeliverTxResponse;
+  transactionResult: any;
   retryCount: number;
   originRestakeTargets: Target[];
   finalRestakeTargets: Target[];
