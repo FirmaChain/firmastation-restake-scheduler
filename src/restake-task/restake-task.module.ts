@@ -7,12 +7,8 @@ import { MongoDbModule } from 'src/mongo-db/mongo-db.module';
 import { ConfigService } from '@nestjs/config';
 
 @Module({
-  imports: [
-    ScheduleModule.forRoot(),
-    RestakeModule,
-    MongoDbModule
-  ],
+  imports: [ScheduleModule.forRoot(), RestakeModule, MongoDbModule],
   providers: [RestakeTaskService, ConfigService],
-  exports: [RestakeTaskService]
+  exports: [RestakeTaskService],
 })
 export class RestakeTaskModule {}
