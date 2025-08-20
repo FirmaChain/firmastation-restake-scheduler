@@ -18,7 +18,7 @@ export interface RestakeMessage {
 export interface TransactionResult {
   errorType: number;
   dateTime: string;
-  transactionResult: DeliverTxResponse;
+  transactionResult: any;
   retryCount: number;
   originRestakeTargets: Target[];
   finalRestakeTargets: Target[];
