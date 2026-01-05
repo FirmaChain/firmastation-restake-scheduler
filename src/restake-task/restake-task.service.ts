@@ -47,11 +47,14 @@ export class RestakeTaskService {
           callback(resultMsg, failedMsg);
           return;
         });
-        this.schedulerRegistry.addCronJob(this.jobName, cronJob);
+        this.schedulerRegistry.addCronJob(
+          this.jobName,
+          cronJob as any,
+        );
       }
 
       const cronJob = this.schedulerRegistry.getCronJob(this.jobName);
-      if (cronJob.isActive) {
+      if (cronJob.running) {
         callback(`❎ Crontab is already running : ${this.jobName}`);
         return;
       }
@@ -73,7 +76,7 @@ export class RestakeTaskService {
       const cronJobs = this.schedulerRegistry.getCronJobs();
       if (cronJobs.has(this.jobName)) {
         const cronJob = this.schedulerRegistry.getCronJob(this.jobName);
-        if (!cronJob.isActive) {
+        if (!cronJob.running) {
           callback(`❎ Crontab is not running : ${this.jobName}`);
           return;
         } else {
@@ -98,7 +101,7 @@ export class RestakeTaskService {
       const cronJobs = this.schedulerRegistry.getCronJobs();
       if (cronJobs.has(this.jobName)) {
         const isRunCron = this.schedulerRegistry.getCronJob(this.jobName);
-        if (isRunCron.isActive) {
+        if (isRunCron.running) {
           callback(`❎ Cron is running : ${this.jobName}`);
           return;
         } else {
