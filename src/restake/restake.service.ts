@@ -247,9 +247,9 @@ export class RestakeService {
       const failedTxResult = failedTxResults[i];
 
       let retryCount = 1;
-      const retryTargets = failedTxResult.finalRestakeTargets;
+      let retryTargets = [...failedTxResult.finalRestakeTargets];
 
-      while (retryTargets.length !== 0) {
+      while (retryTargets.length !== 0 && retryCount <= this.maxRetryCount) {
         const retryAllowedMessages = await this.getAllowedMessages(
           retryTargets,
         );
@@ -260,6 +260,19 @@ export class RestakeService {
           messages.push(item.message);
           targets.push(item.target);
         });
+
+        // Exit if messages are empty as there are no more targets to retry
+        if (messages.length === 0) {
+          retryTransactionResults.push({
+            errorType: RESTAKE_FAILED_CALC_GAS,
+            dateTime: new Date().toISOString(),
+            transactionResult: null,
+            retryCount: retryCount,
+            originRestakeTargets: failedTxResult.originRestakeTargets,
+            finalRestakeTargets: [],
+          });
+          break;
+        }
 
         const { errorType, transactionResult, dateTime } =
           await this.getTransactionResult(messages);
@@ -274,13 +287,34 @@ export class RestakeService {
             errorType: errorType,
             dateTime: dateTime,
             transactionResult: transactionResult,
-            retryCount: retryCount,
-            originRestakeTargets: retryTargets,
+            retryCount: retryCount - 1,
+            originRestakeTargets: failedTxResult.originRestakeTargets,
             finalRestakeTargets: targets,
           });
+          break;
         } else {
+          // On failure, retry only the remaining targets excluding successful ones
+          const successTargetAddresses = new Set(
+            targets.map((t) => `${t.validatorAddr}-${t.delegatorAddr}`),
+          );
+          retryTargets = retryTargets.filter(
+            (t) =>
+              !successTargetAddresses.has(`${t.validatorAddr}-${t.delegatorAddr}`),
+          );
           this.logger.info(`❌ Failed restake : ${errorType}`);
         }
+      }
+
+      // Handle remaining targets that exceeded maxRetryCount
+      if (retryTargets.length !== 0 && retryCount > this.maxRetryCount) {
+        retryTransactionResults.push({
+          errorType: RESTAKE_FAILED_EXECUTE,
+          dateTime: new Date().toISOString(),
+          transactionResult: null,
+          retryCount: retryCount - 1,
+          originRestakeTargets: failedTxResult.originRestakeTargets,
+          finalRestakeTargets: retryTargets,
+        });
       }
     }
 
@@ -436,7 +470,7 @@ export class RestakeService {
     }
   }
 
-  // Gets the widthdraw address of delegator.
+  // Gets the withdraw address of delegator.
   private async getWithdrawAddress(delegatorAddress: string) {
     try {
       return await this.firmaSDK.Distribution.getWithdrawAddress(
